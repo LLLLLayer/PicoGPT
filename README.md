@@ -1,25 +1,7 @@
 # PicoGPT
-Accompanying blog post: [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)
+This project is forked from [jaymody/picoGPT](https://github.com/jaymody/picoGPT). The article content is translated and edited from  [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/).
 
----
-
-You've seen [openai/gpt-2](https://github.com/openai/gpt-2).
-
-You've seen [karpathy/minGPT](https://github.com/karpathy/mingpt).
-
-You've even seen [karpathy/nanoGPT](https://github.com/karpathy/nanogpt)!
-
-But have you seen [picoGPT](https://github.com/jaymody/picoGPT)??!?
-
-`picoGPT` is an unnecessarily tiny and minimal implementation of [GPT-2](https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) in plain [NumPy](https://numpy.org). The entire forward pass code is [40 lines of code](https://github.com/jaymody/picoGPT/blob/main/gpt2_pico.py#L3-L41).
-
-picoGPT features:
-* Fast? ❌ Nah, picoGPT is megaSLOW 🐌
-* Training code? ❌ Error, 4️⃣0️⃣4️⃣ not found
-* Batch inference? ❌ picoGPT is civilized, single file line, one at a time only
-* top-p sampling? ❌ top-k? ❌ temperature? ❌ categorical sampling?! ❌ greedy? ✅
-* Readable? `gpt2.py` ✅ `gpt2_pico.py` ❌
-* Smol??? ✅✅✅✅✅✅ YESS!!! TEENIE TINY in fact 🤏
+PicoGPT is an unnecessarily tiny and minimal implementation of [GPT-2](https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) in plain [NumPy](https://numpy.org). The entire forward pass code is [40 lines of code](https://github.com/jaymody/picoGPT/blob/main/gpt2_pico.py#L3-L41).
 
 A quick breakdown of each of the files:
 
@@ -28,13 +10,15 @@ A quick breakdown of each of the files:
 * `gpt2.py` contains the actual GPT model and generation code which we can run as a python script.
 * `gpt2_pico.py` is the same as `gpt2.py`, but in even fewer lines of code. Why? Because why not 😎👍.
 
-#### Dependencies
+## Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 Tested on `Python 3.9.10`.
 
-#### Usage
+## Usage
+
 ```bash
 python gpt2.py "Alan Turing theorized that computers would one day become"
 ```
