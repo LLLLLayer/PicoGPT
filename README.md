@@ -1,16 +1,9 @@
-# PicoGPT
+# PicoGPT / 60 行 NumPy 实现 GPT
 PicoGPT is an unnecessarily tiny and minimal implementation of [GPT-2](https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) in plain [NumPy](https://numpy.org). The entire forward pass code is [40 lines of code](https://github.com/jaymody/picoGPT/blob/main/gpt2_pico.py#L3-L41).
 
 > This project is forked from [jaymody/picoGPT](https://github.com/jaymody/picoGPT). 
 >
 > The article content is translated and edited from  [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/).
-
-A quick breakdown of each of the files:
-
-* `encoder.py` contains the code for OpenAI's BPE Tokenizer, taken straight from their [gpt-2 repo](https://github.com/openai/gpt-2/blob/master/src/encoder.py).
-* `utils.py` contains the code to download and load the GPT-2 model weights, tokenizer, and hyper-parameters.
-* `gpt2.py` contains the actual GPT model and generation code which we can run as a python script.
-* `gpt2_pico.py` is the same as `gpt2.py`, but in even fewer lines of code. Why? Because why not 😎👍.
 
 ## Dependencies
 
@@ -25,10 +18,10 @@ Tested on `Python 3.9.10`.
 python gpt2.py "Alan Turing theorized that computers would one day become"
 ```
 
-Which generates
+Which generates:
 
 ```
- the most powerful machines on the planet.
+the most powerful machines on the planet.
 
 The computer is a machine that can perform complex calculations, and it can perform these calculations in a way that is very similar to the human brain.
 ```
@@ -43,9 +36,7 @@ python gpt2.py \
     --models_dir "models"
 ```
 
----
 
-# 60 行 NumPy 实现 GPT
 
 # 前言
 
@@ -56,7 +47,7 @@ python gpt2.py \
 
 # GPT 是什么?
 
-**GPT(Generative Pre-trained Transformer)**，是一类基于 Transformer 的神经网络架构。[How GPT3 Works - Visualizations and Animations](https://jalammar.github.io/how-gpt3-works-visualizations-animations/) 对 GPT 进行了介绍：
+**GPT(Generative Pre-trained Transformer)**，是一类基于 Transformer 的神经网络架构：
 
 - **生成式(Generative)：**GPT 可以生成文本；
 - **预训练(Pre-trained)：**GPT 基于来自于书本、互联网等的海量文本进行训练；
@@ -94,7 +85,7 @@ def gpt(inputs: list[int]) -> list[list[float]]:
 # 整数表示文本中的 token，例如：
 # text  = "not all heroes wear capes"
 # token = "not" "all" "heroes" "wear" "capes"
-inputs =   [1,     0,       2,     4,      6]
+inputs =    [1,    0,       2,     4,      6]
 ```
 
 token 是文本的小片段，它们由某种**分词器(Tokenizer)**产生。我们可以通过一个**词表(Vocabulary)**将 token 映射为整数：
@@ -125,7 +116,7 @@ text = tokenizer.decode(ids) # text = "not all heroes wear"
 2. 有一种 `encode` 方法可以转换 `str -> list[int]`；
 3. 有一种 `decode` 方法可以转换 `list[int] -> str`。
 
-输出是一个二维数组，其中 `output[i][j` 表示模型的预测概率，这个概率代表了词汇表中位于 `vocab[j]` 的 token 是下一个 token `inputs[i+1]` 的概率，如：
+输出是一个二维数组，其中 `output[i][j]` 表示模型的预测概率，这个概率代表了词汇表中位于 `vocab[j]` 的 token 是下一个 token `inputs[i+1]` 的概率，如：
 
 ```python
 vocab = ["all", "not", "heroes", "the", "wear", ".", "capes"]
@@ -200,11 +191,11 @@ np.random.choice(np.arange(vocab_size), p=output[-1]) # pants
 > 2. top-p ：每次只在累计概率达到 p 的词集合里随机选一个，动态控制候选词数量，进一步提升生成的自然度和多样性。
 > 3. temperature ：通过调整概率分布的“平滑度”，温度高时生成更随机，温度低时生成更确定。
 
-## 训练
+## 训练(Training)
 
 我们与训练其它神经网络一样，**损失函数(Loss Function)**是衡量模型预测结果与真实结果之间差距的一个函数，针对特定的损失函数，使用[梯度下降(Gradient descent optimization algorithms)](https://huggingface.co/papers/1609.04747)训练 GPT，即根据损失函数对参数的导数(梯度)，沿着让损失变小的方向，微调模型参数。
 
-在这里，我们使用**语言建模任务(Language Modeling)**即给定一段文本的前面部分，预测下一个最有可能出现的 token 的任务，的[**交叉熵损失(Cross Entropy Loss)**](https://www.youtube.com/watch?v=ErfnhcEV1O8)损失函数：假设有三个类别，真实标签是类别 2，模型预测概率为 [0.1, 0.7, 0.2]，那么交叉熵损失就是 -log(0.7)。如果模型预测概率为 [0.1, 0.2, 0.7]，损失就是 -log(0.2)，显然损失更大，因为模型预测错了。具体可见代码：
+在这里，我们使用**语言建模任务(Language Modeling)**即给定一段文本的前面部分，预测下一个最有可能出现的 token 的任务的[**交叉熵损失(Cross Entropy Loss)**](https://www.youtube.com/watch?v=ErfnhcEV1O8)损失函数：假设有三个类别，真实标签是类别 2，模型预测概率为 [0.1, 0.7, 0.2]，那么交叉熵损失就是 -log(0.7)。如果模型预测概率为 [0.1, 0.2, 0.7]，损失就是 -log(0.2)，显然损失更大，因为模型预测错了。具体可见代码：
 
 ```python
 def lm_loss(inputs: list[int], params) -> float:
@@ -254,19 +245,17 @@ def train(texts: list[list[str]], params) -> float:
 
 这就是一个极度简化但典型的神经网络训练循环：编码输入、计算损失、反向传播求梯度、用梯度下降法更新参数。不断重复这个过程，模型就会越来越“聪明”，预测能力越来越强。
 
-请注意，我们在这里并未使用明确的标注数据。取而代之的是使用原始文本自身，产生大量的输入/标签对(input/label pairs)。这就是所谓的**[自监督学习(Self-supervised learning)](https://en.wikipedia.org/wiki/Self-supervised_learning)**。自监督使我们能够大规模扩展训练数据。我们只需要获取尽可能多的原始文本，并将其输入到模型中即可。例如，GPT-3 使用了来自互联网和书籍的 3000 亿个文本 tokens 进行训练：
+请注意，我们在这里并未使用明确的标注数据。取而代之的是使用原始文本自身，产生大量的输入/标签对(input/label pairs)。这就是所谓的**[自监督学习(Self-supervised learning)](https://en.wikipedia.org/wiki/Self-supervised_learning)**。自监督使我们能够大规模扩展训练数据。我们只需要获取尽可能多的原始文本，并将其输入到模型中即可。例如，GPT-3 使用了来自互联网和书籍的 3000 亿个文本 tokens 进行训练，以下图表来自[Language Models are Few-Shot Learners](https://huggingface.co/papers/2005.14165)：
 
-![Datasets used to train GPT-3](./README.assets/datasets_used_to_train_gpt_3.png)
+![Language Models are Few-Shot Learners Table 2.2: Datasets used to train GPT-3](./README.assets/datasets_used_to_train_gpt_3.png)
 
-这个自监督训练的步骤称之为**预训练(Pre-training)**，我们可以重复使用预训练模型权重来训练下游任务上的特定模型，预训练模型有时也被称为**基础模型(Foundation models)**。在下游任务上训练模型被称之为**微调(Fine-tuning)**，因为模型权重已经过预先训练以理解语言，因此它只是针对手头的特定任务进行微调。
-
-这种“在通用任务上预训练+在特定任务上微调”的策略，称之为**[迁移学习(Transfer learning)](https://en.wikipedia.org/wiki/Transfer_learning)**。
+这个自监督训练的步骤称之为**预训练(Pre-training)**，我们可以重复使用预训练模型权重来训练下游任务上的特定模型，预训练模型有时也被称为**基础模型(Foundation models)**。在下游任务上训练模型被称之为**微调(Fine-tuning)**，因为模型权重已经过预先训练以理解语言，因此它只是针对手头的特定任务进行微调。这种“在通用任务上预训练+在特定任务上微调”的策略，称之为**[迁移学习(Transfer learning)](https://en.wikipedia.org/wiki/Transfer_learning)**。
 
 ## 提示(Prompting)
 
-最初的 [Improving Language Understanding by Generative Pre-Training](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) 介绍了一种使用 Transformer 架构的生成式预训练模型，提出了一种两阶段训练方法：首先在大量无标注文本上进行预训练、然后在有标注数据上进行微调。一个 117M 参数规模的 GPT 预训练模型，在针对下游任务的标注数据上微调之后，它能够在各种**自然语言处理(NLP, Natural language processing)**任务上达到最优性能。
+最初的 [Improving Language Understanding by Generative Pre-Training](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) (GPT-1)介绍了一种使用 Transformer 架构的生成式预训练模型，提出了一种两阶段训练方法：首先在大量无标注文本上进行预训练、然后在有标注数据上进行微调。一个 117M 参数规模的 GPT 预训练模型，在针对下游任务的标注数据上微调之后，它能够在各种**自然语言处理(NLP, Natural language processing)**任务上达到最优性能。
 
-直到 [Language Models are Unsupervised Multitask Learners ](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)和 [Language Models are Few-Shot Learners](https://arxiv.org/abs/2005.14165) 论文发表，我们意识到，一个用足够多的数据和参数预训练的 GPT 模型，能够独立执行任意任务，无需微调。只要对模型进行**提示(Prompt)**，模型就会给出合适的响应。这被称为**上下文学习(In-context learning)**，因为模型仅使用提示的上下文来执行任务。上下文学习可以是**零样本学习(Zero-shot)**、**单样本学习(One-shot)**或**少样本学习(Few-shot)**：
+直到 [Language Models are Unsupervised Multitask Learners ](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)和 [Language Models are Few-Shot Learners](https://arxiv.org/abs/2005.14165) (GPT-2/GPT-3)论文发表，我们意识到，一个用足够多的数据和参数预训练的 GPT 模型，能够独立执行任意任务，无需微调，模型具备了**涌现能力(Emergent abilities)**。只要对模型进行**提示(Prompt)**，模型就会给出合适的响应。这被称为**上下文学习(In-context learning)**，因为模型仅使用提示的上下文来执行任务。上下文学习可以是**零样本学习(Zero-shot)**、**单样本学习(One-shot)**或**少样本学习(Few-shot)**：
 
 ![Language Models are Few-Shot Learners Figure 2.1: Zero-shot, one-shot and few-shot, contrasted with traditional fine-tuning](./README.assets/zero_shot_one_shot_and_few_shot_contrasted_with_traditional_fine_tuning.png)
 
@@ -281,14 +270,14 @@ GPT 不仅限于自然语言处理任务(NLP)，它可以应用于各种条件�
 克隆本教程的存储库，并安装依赖项：
 
 ```
-git clone https://github.com/jaymody/picoGPT
+git clone https://github.com/LLLLLayer/PicoGPT.git
 cd picoGPT
 pip install -r requirements.txt
 ```
 
 项目文件包含：
 
-- **`encoder.py`** 包含 OpenAI 的 BPE 分词器(Tokenizer)的代码，来自 [openai gpt-2](https://github.com/openai/gpt-2/blob/master/src/encoder.py)；
+- **`encoder.py`** 包含 OpenAI 的 BPE(Byte Pair Encoding)分词器(Tokenizer)的代码，来自 [openai gpt-2](https://github.com/openai/gpt-2/blob/master/src/encoder.py)；
 - **`utils.py`** 包含下载和加载 GPT-2 模型的权重、分词器和超参数的代码；
 - **`gpt2.py`** 包含实际的 GPT 模型的代码及完整的注释描述，可直接运行；
 - **`gpt2_pico.py `**与 `gpt2.py` 相同，但省去了注释部分。
@@ -388,7 +377,7 @@ ids
 # ['Not', 'Ġall', 'Ġheroes', 'Ġwear', 'Ġcap', 'es', '.']
 ```
 
-请注意，有时 token 是单词(如 `Not`)，有时是前面有一个空格的单词(如 `Ġall`，[`Ġ`表示空格](https://github.com/karpathy/minGPT/blob/37baab71b9abea1b76ab957409a1cc2fbfba8a26/mingpt/bpe.py#L22-L33))，有时是部分单词(如 capes 分为 `Ġcap `和 `es`)，有时是标点符号(如 `.`)。
+请注意，有时 token 是单词(如 `Not`)，有时是前面有一个空格的单词(如 `Ġall`，[`Ġ`表示空格](https://github.com/karpathy/minGPT/blob/37baab71b9abea1b76ab957409a1cc2fbfba8a26/mingpt/bpe.py#L22-L33))，有时是部分单词(如 capes 分为  `Ġcap` 和  `es`)，有时是标点符号(如 `.`)。
 
  BPE 的一个优点是它可以编码任意字符串，若遇到词汇表中不存在的内容，它会将其分解为它能理解的子字符串：
 
@@ -401,42 +390,41 @@ ids
 
 词汇表就像是一本"字典"，它包含了模型能够理解的所有"单词"(tokens)及其对应的数字 ID。在 GPT 模型中，这些"单词"可能是真实的单词、单个字符、或者是常见的词组片段。
 
-**字节对编码(BPE，Byte-Pair Encoding)** 是一种决定如何将文本分解成 token 的算法。它首先将文本看作单个字符，然后逐步合并最常一起出现的字符对，形成新的 token，这个过程不断重复，直到达到预设的词汇量。假设"机器学习"这个词在语料库中经常出现BPE算法可能会将其作为一个完整的token，而不是分解为"机"、"器"、"学"、"习"四个 token 这样可以更高效地表示常见词组。
+**字节对编码(BPE，Byte-Pair Encoding)** 是一种决定如何将文本分解成 token 的算法。它首先将文本看作单个字符，然后逐步合并最常一起出现的字符对，形成新的 token，这个过程不断重复，直到达到预设的词汇量。假设"机器学习"这个词在语料库中经常出现BPE算法可能会将其作为一个完整的 token，而不是分解为"机"、"器"、"学"、"习"四个 token 这样可以更高效地表示常见词组。
 
-> 这些文件在运行 `load_encoder_hparams_and_params`时被下载。可以查看 `models/124M/encoder.json` (词汇表)和 `models/124M/vocab.bpe` (字节对组合)。
+> 这些文件在运行 `load_encoder_hparams_and_params`时被下载。
+>
+> 可以查看 `models/124M/encoder.json` (词汇表)和 `models/124M/vocab.bpe` (字节对组合)。
 
-`hparams `是一个包含我们模型超参数的字典：
+**超参数(Hyperparameters)**是在模型训练开始前设置的参数，它们控制模型的结构和训练过程。`hparams` 是一个包含我们模型超参数的字典：
 
 ```python
 hparams
 { 
    "n_vocab": 50257, # 词表中的 token 数量
-    								 #
-  									 # 虽然在训练模型时已经确定，但它仍然需要作为超参数:
-                     # 1. 模型架构需要: 模型在初始化和运行时需要知道词表的大小，以便正确设置嵌入层的维度和输出层的大小；
-                     # 2. 一致性检查: 在加载预训练模型时，需要确保使用的词表大小与模型训练时使用的词表大小一致；
-										 # 3. 配置完整性: 将所有模型相关的配置参数统一存储在一个地方，使得模型的配置更加清晰和完整；
-  									 # 4. 模型复用: 当需要重新初始化模型或迁移到新任务时，完整的超参数集合使得模型结构可以被准确地重建。
   									 #
    "n_ctx"  : 1024,  # 输入的最大可能序列长度
-    							   #
-  									 # 作为超参数包含在 hparams 中有几个重要原因：
-  									 # 1. 模型结构限制: Transformer 架构有一个固定的最大序列长度限制，这是模型设计和训练时就确定的参数。
-								     # 2. 位置编码: Transformer 模型使用位置编码(positional encoding)来理解 token 在序列中的位置。                      #             n_ctx 决定了需要多少不同的位置编码，这直接影响模型的初始化和计算。
-								     # 3. 内存分配: 模型需要预先分配足够的内存来处理最大长度的序列。
-								     # 4. 注意力机制计算: 注意力机制需要计算序列中每个 token 与其他所有 token 的关系，
-  									 #								  计算复杂度与序列长度的平方成正比。 n_ctx 限制了这种计算的规模。
-								     # 5. 运行时验证 ：在推理过程中，需要验证输入序列是否超过了模型能处理的最大长度，如代码中的检查。
   									 #
-   "n_embd" : 768,   # 嵌入维度(决定网络的"宽度")
-   "n_head" : 12,    # 注意力头的数量(n_embd 必须能被 n_head 整除)
-   "n_layer": 12     # 层数(决定网络的"深度")
+   "n_embd" : 768,   # 嵌入维度
+  									 # 表示每个 token 被转换成的向量维度，决定网络的"宽度"；维度越大，向量能够编码的信息越丰富；
+  									 # 更高的维度使模型能够更好地区分不同 token 之间的细微差别，维度也使模型能够捕捉更复杂的语义关系。
+  									 #
+   "n_head" : 12,    # 注意力头的数量
+  									 # 它决定了模型如何并行处理和整合不同角度的信息，对模型的性能有重要影响；可以理解为模型观察输入序列的不同"视角"或"焦点"；
+  								   # 每个头都会独立地计算注意力权重、关注输入序列的不同方面、捕捉不同类型的依赖关系。
+  									 #
+   "n_layer": 12     # 层数
+  									 # 表示 Transformer 块的堆叠数量，决定网络的"深度"；层数越多，信息可以传递的路径就越多样化
+  									 # 多的层使模型能够学习更抽象、更复杂的特征，低层通常捕获基本语法和简单语义、高层能够理解更复杂的语义关系和上下文。
 }
+# n_layer(层数)：决定深度
+# n_embd(嵌入维度)：决定宽度
+# n_head(注意力头数)：决定并行处理能力
 ```
 
-我们将在代码注释中使用这些符号来展示事物的底层结构。此外， 我们会使用 `n_seq` 表示输入序列的长度(即`n_seq = len(inputs)`)。
+此外， 我们会使用  `n_seq` (Number of sequence)表示输入序列的长度，即 `n_seq = len(inputs)`。
 
-`params `是一个嵌套的 JSON 字典，用于保存模型的训练权重。JSON 的叶节点是 NumPy 数组。如果打印 `params`，并将数组替换为其形状，我们将得到：
+`params` 是一个嵌套的  JSON 字典，用于保存模型的训练权重。JSON 的叶节点是 NumPy 数组。如果打印  `params`，并将数组替换为其形状，我们将得到：
 
 ```python
 import numpy as np
@@ -452,18 +440,18 @@ def shape_tree(d):
 
 print(shape_tree(params))
 # {
-#     "wpe": [ 1024, 768],
-#     "wte": [50257, 768],
-#     "ln_f": {"b": [768], "g": [768]},
-#     "blocks": [
+#     "wpe": [ 1024, 768],                      # 位置嵌入权重(wpe)，为序列中的每个位置提供位置信息
+#     "wte": [50257, 768],                      # 词嵌入权重(wte)，将输入 token ID 转换为向量表示
+#     "ln_f": {"b": [768], "g": [768]},         # 最终层归一化参数(ln_f)，对最终输出进行归一化处理
+#     "blocks": [                               # Transformer 块(blocks)，包含多个相同结构的层，每层包含:
 #         {
-#             "attn": {
+#             "attn": {                         # 注意力机制(attn)
 #                 "c_attn": {"b": [2304], "w": [768, 2304]},
-#                 "c_proj": { "b": [768], "w": [768,  768]},
+#                 "c_proj": {"b":  [768], "w": [768,  768]},
 #             },
-#             "ln_1": {"b": [768], "g": [768]},
+#             "ln_1": {"b": [768], "g": [768]}, # 层归一化(ln_1, ln_2)
 #             "ln_2": {"b": [768], "g": [768]},
-#             "mlp": {
+#             "mlp": {                          # 多层感知机(mlp)
 #                 "c_fc"  : {"b": [3072], "w": [ 768, 3072]},
 #                 "c_proj": {"b":  [768], "w": [3072,  768]},
 #             },
@@ -471,6 +459,31 @@ print(shape_tree(params))
 #         ... # repeat for n_layers
 #     ]
 # }
+```
+
+为了对比，这里显示了 `params` 的形状：
+
+```python
+{
+    "wpe": [  n_ctx, n_embd],
+    "wte": [n_vocab, n_embd],
+    "ln_f": {"b": [n_embd], "g": [n_embd]},
+    "blocks": [
+        {
+            "attn": {
+                "c_attn": {"b": [3*n_embd], "w": [n_embd, 3*n_embd]},
+                "c_proj": {"b": [  n_embd], "w": [n_embd,   n_embd]},
+            },
+            "ln_1": {"b": [n_embd], "g": [n_embd]},
+            "ln_2": {"b": [n_embd], "g": [n_embd]},
+            "mlp": {
+                "c_fc"  : {"b": [4*n_embd], "w": [  n_embd, 4*n_embd]},
+                "c_proj": {"b": [  n_embd], "w": [4*n_embd,   n_embd]},
+            },
+        },
+        ... # repeat for n_layers
+    ]
+}
 ```
 
 这些是从 OpenAI TensorFlow 检查点加载的：
@@ -504,31 +517,6 @@ for name, _ in tf.train.list_variables(tf_ckpt_path):
 # model/wte: (50257, 768)
 ```
 
-为了对比，这里显示了 `params` 的形状：
-
-```python
-{
-    "wpe": [  n_ctx, n_embd],
-    "wte": [n_vocab, n_embd],
-    "ln_f": {"b": [n_embd], "g": [n_embd]},
-    "blocks": [
-        {
-            "attn": {
-                "c_attn": {"b": [3*n_embd], "w": [n_embd, 3*n_embd]},
-                "c_proj": {"b": [  n_embd], "w": [n_embd,   n_embd]},
-            },
-            "ln_1": {"b": [n_embd], "g": [n_embd]},
-            "ln_2": {"b": [n_embd], "g": [n_embd]},
-            "mlp": {
-                "c_fc"  : {"b": [4*n_embd], "w": [  n_embd, 4*n_embd]},
-                "c_proj": {"b": [  n_embd], "w": [4*n_embd,   n_embd]},
-            },
-        },
-        ... # repeat for n_layers
-    ]
-}
-```
-
 在实现 GPT 时，我们需要回来参考该字典来检查权重的形状。为了保持一致性，我们会将代码中的变量名与字典的键进行匹配。
 
 ## 基础的神经网络层
@@ -539,7 +527,7 @@ for name, _ in tf.train.list_variables(tf_ckpt_path):
 
 [GELU (Gaussian Error Linear Units)](https://huggingface.co/papers/1606.08415) 是 GPT-2 的非线性激活函数，在 Transformer 架构中表现优于 ReLU 和其他激活函数。神经网络中最基本的操作是线性变换(如矩阵乘法和偏置加法)。如果没有非线性激活函数，无论神经网络有多少层，整个网络本质上仍然只是一个线性模型。非线性激活函数打破了这种限制，使网络能够学习复杂的非线性关系。
 
-![Gaussian Error Linear Units Figure 1](./README.assets/gaussian_error_linear_units.png)
+![Gaussian Error Linear Units Figure 1: The GELU (µ = 0, σ = 1), ReLU, and ELU (α = 1)](./README.assets/gaussian_error_linear_units.png)
 
 GELU 激活函数 `GELU(x) = x * Φ(x)` 可以被理解为：将输入值 x 乘以该输入被保留的概率。这个概率由标准正态分布的累积分布函数(CDF)给出。由于标准正态分布的 CDF 计算复杂，代码使用了一个常用的近似公式：
 
@@ -556,9 +544,11 @@ gelu(np.array([[1, 2], [-2, 0.5]]))
 #        [ -0.0454, 0.34571]])
 ```
 
+> 在后文的实现中，GELU 主要用在前馈神经网络部分。
+
 ### 软最大值函数(Softmax)
 
-Softmax 函数在神经网络和深度学习中扮演着非常重要的角色，Softmax 的核心作用是将一组实数值(通常称为 logits)转换为概率分布。它确保所有输出值在 0 到 1 之间，并且所有值的总和为 1。在 GPT-2 等语言模型中，Softmax 用于词汇表上的概率分布，帮助模型预测序列中的下一个词。下面是最经典的 Softmax 函数:
+Softmax 函数在神经网络和深度学习中扮演着非常重要的角色，Softmax 的核心作用是将一组实数值(通常称为 logits)转换为概率分布。它确保所有输出值在 0 到 1 之间，并且所有值的总和为 1。在 GPT-2 等语言模型中，Softmax 用于词汇表上的概率分布，帮助模型预测序列中的下一个词。下面是最经典的 Softmax 函数(整个表达式计算的是第 i 个元素的概率值):
 $$
 \text{softmax}(x_i) = \frac{e^{x_i}}{\sum_j e^{x_j}}
 $$
@@ -569,7 +559,7 @@ def softmax(x):
     # 首先从输入 x 中减去每个样本的最大值(最大的输入值变为 0，其他值变为负数)，防止指数计算时出现数值溢出
     # 对调整后的值计算指数 `exp_x = np.exp(x - max_x)`，这将所有值转换为正数
     # axis=-1 表示沿着最后一个维度操作，对于 GPT-2 模型的输出 logits，最后一个维度的大小等于词汇表大小
-    # keepdims=True 保持数组的维度结构，便于后续广播操作
+    # keepdims=True 保持数组的维度结构，便于后续操作
     return exp_x / np.sum(exp_x, axis=-1, keepdims=True)
     # 计算指数值的总和，将每个指数值除以总和，这确保输出的所有值在 0 到 1 之间，且总和为 1。
 ```
@@ -582,6 +572,8 @@ x
 x.sum(axis=-1)
 # array([1., 1.])
 ```
+
+> 在后文的实现中，Softmax 主要用于注意力机制部分。
 
 ### 层归一化(Layer Normalization)
 
@@ -614,11 +606,13 @@ x.mean(axis=-1)
 #array([-0., -0.])
 ```
 
+> 在后文的实现中，层归一化在注意力机制和前馈网络之前都被应用。
+
 ### 线性变换(Linear)
 
-在深度学习中，线性层通常与非线性激活函数结合使用，以增强模型的表达能力。这种维度变换是深度学习中的基础操作，使模型能够在不同维度的特征空间中进行计算和学习。
+在深度学习中，线性层通常与非线性激活函数结合使用，以增强模型的表达能力。这种维度变换是深度学习中的基础操作，使模型能够在不同维度的特征空间中进行计算和学习。线性变换是一种将向量从一个向量空间映射到另一个向量空间的操作。在深度学习中，这通常通过矩阵乘法加偏置来实现。
 
-linear 函数实现了一个标准的线性变换，这个函数实现了一个标准的矩阵乘法加偏置的线性层，通常被称为投影(Projection)。这个名称来源于线性代数中的向量空间投影概念，因为它将向量从一个向量空间映射(或"投影")到另一个向量空间：
+linear 函数实现了一个标准的线性变换，这个函数实现了一个标准的矩阵乘法加偏置的线性层，通常被称为**投影(Projection)**。这个名称来源于线性代数中的向量空间投影概念，因为它将向量从一个向量空间映射(或"投影")到另一个向量空间：
 
 ```python
 def linear(x, w, b): 
@@ -640,6 +634,8 @@ x.shape # 线性投影前的形状
 linear(x, w, b).shape # 线性投影后的形状
 # (64, 10)
 ```
+
+> 在后文的实现中，线性变换在注意力机制、前馈神经网络等被应用。
 
 ## GPT 架构
 
