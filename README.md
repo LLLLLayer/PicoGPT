@@ -49,9 +49,9 @@ python gpt2.py \
 
 **GPT(Generative Pre-trained Transformer)**，是一类基于 Transformer 的神经网络架构：
 
-- **生成式(Generative)：**GPT 可以生成文本；
-- **预训练(Pre-trained)：**GPT 基于来自于书本、互联网等的海量文本进行训练；
-- **Transformer：**GPT是一个只用“解码器”(decoder-only)的 Transformer 神经网络结构。
+- **生成式(Generative)**：GPT 可以生成文本；
+- **预训练(Pre-trained)**：GPT 基于来自于书本、互联网等的海量文本进行训练；
+- **Transformer**：GPT是一个只用“解码器”(decoder-only)的 Transformer 神经网络结构。
 
 > Transformer 原本有“编码器”和“解码器”两部分，编码器负责理解输入，解码器负责生成输出。GPT 只保留了解码器部分，所以叫“decoder-only”。
 
@@ -173,7 +173,7 @@ output_tokens = [vocab[i] for i in output_ids] # "heroes" "wear" "capes"
 
 ### 采样(Sampling)
 
-我们可以通过按照概率分布随机选择一个 token 来引入一些**随机性(Stochasticity)：**
+我们可以通过按照概率分布随机选择一个 token 来引入一些**随机性(Stochasticity)**：
 
 ```python
 inputs = [1, 0, 2, 4] # "not" "all" "heroes" "wear"
