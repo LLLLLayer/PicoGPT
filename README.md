@@ -645,7 +645,7 @@ linear(x, w, b).shape # 线性投影后的形状
 
 GPT的架构是基于 [Transformer](https://huggingface.co/papers/1706.03762) 的，但它仅仅使用了解码器层，此外我们已经搞定了编码器，所以中间的”cross-attention”层被移除：
 
-| ![Attention Is All You Need Figure 1: The Transformer - model architecture](./60GPT.assets/the_transformer_model_architecture_1.png) | ![Attention Is All You Need Figure 1: The Transformer - model architecture](./60GPT.assets/the_transformer_model_architecture_2.png) |
+| ![Attention Is All You Need Figure 1: The Transformer - model architecture](./README.assets/the_transformer_model_architecture_1.png) | ![Attention Is All You Need Figure 1: The Transformer - model architecture](./README.assets/the_transformer_model_architecture_2.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 GPT 架构分为三个部分：词元嵌入 (Word Token Embeddings) + 位置嵌入(WPE)、Transformer 解码器堆栈(Decoder stack)、投影为词汇表(Projection to vocab)。在代码里如下：
@@ -1282,7 +1282,7 @@ def singe_example_loss_fn(inputs: list[int], label: int, params) -> float:
 
 这些指令数据具体是什么样子？Google的 [FLAN 模型](https://huggingface.co/papers/2109.01652)是在各种学术NLP数据集(已经是人工标记的)上训练的：
 
-![Figure 3: Datasets and task clusters used in this paper (../../60GPT.assets/datasets_and_task_clusters_used_in_this_paper.png).](./60GPT.assets/datasets_and_task_clusters_used_in_this_paper.png)
+![Figure 3: Datasets and task clusters used in this paper (../../README.assets/datasets_and_task_clusters_used_in_this_paper.png).](./README.assets/datasets_and_task_clusters_used_in_this_paper.png)
 
 另一方面，OpenAI的 [InstructGPT](https://huggingface.co/papers/2203.02155) 是在从他们自己的API收集的提示上训练的。然后他们付费让工作人员为这些提示编写完成内容。以下是数据的细分：
 
@@ -1298,6 +1298,6 @@ def singe_example_loss_fn(inputs: list[int], label: int, params) -> float:
 
 例如，以 [Adapters 论文](https://huggingface.co/papers/1902.00751)为例。在这种方法中，我们在transformer块中的FFN和MHA层之后添加一个额外的"适配器"层。适配器层只是一个简单的2层全连接神经网络，其中输入和输出维度是n_embd，而隐藏维度小于n_embd：
 
-![Figure 2. Architecture of the adapter module and its integration with the Transformer.](../../../../../.././60GPT.assets/architecture_of_the_adapter_module_and_its_integration_with_the_transformer.png)
+![Figure 2. Architecture of the adapter module and its integration with the Transformer.](../../../../../.././README.assets/architecture_of_the_adapter_module_and_its_integration_with_the_transformer.png)
 
 隐藏维度的大小是我们可以设置的超参数，使我们能够在参数和性能之间进行权衡。对于BERT模型，论文显示使用这种方法可以将训练参数减少到2%，同时与完全微调相比只承受很小的性能损失(<1%)。
