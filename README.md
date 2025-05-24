@@ -391,7 +391,7 @@ if __name__ == "__main__":
 ```python
 ids = encoder.encode("Not all heroes wear capes.")
 print(ids)
-# 输出: [3673, 477, 10281, 5806, 1451, 274, 13]
+# [3673, 477, 10281, 5806, 1451, 274, 13]
 ```
 
 使用分词器的词汇表，可以查看实际的 token：
@@ -399,7 +399,7 @@ print(ids)
 ```python
 tokens = [encoder.decoder[i] for i in ids]
 print(tokens)
-# 输出: ['Not', 'Ġall', 'Ġheroes', 'Ġwear', 'Ġcap', 'es', '.']
+# ['Not', 'Ġall', 'Ġheroes', 'Ġwear', 'Ġcap', 'es', '.']
 ```
 
 请注意，有时 token 是单词(如 `Not`)，有时是前面有一个空格的单词(如 `Ġall`，[`Ġ`表示空格](https://github.com/karpathy/minGPT/blob/37baab71b9abea1b76ab957409a1cc2fbfba8a26/mingpt/bpe.py#L22-L33))，有时是部分单词(如 capes 分为  `Ġcap` 和  `es`)，有时是标点符号(如 `.`)。
@@ -412,7 +412,7 @@ BPE 的一个优点是它可以编码任意字符串，若遇到词汇表中不�
 
 ```python
 print([encoder.decoder[i] for i in encoder.encode("zjqfl")])
-# 输出: ['z', 'j', 'q', 'fl']
+# ['z', 'j', 'q', 'fl']
 ```
 
 > 这些文件在运行 `load_encoder_hparams_and_params` 时被下载。
@@ -456,7 +456,7 @@ def shape_tree(d):
     else:
         ValueError("uh oh")
 print(shape_tree(params))
-# 输出: {
+# {
 #     "wpe": [ 1024, 768],
 #     "wte": [50257, 768],
 #     "ln_f": {"b": [768], "g": [768]},
@@ -557,11 +557,11 @@ for name, _ in tf.train.list_variables(tf_ckpt_path):
 
 ### 高斯误差线性单元(GELU)
 
-[GELU (Gaussian Error Linear Units)](https://huggingface.co/papers/1606.08415) 是 GPT-2 的非线性激活函数，在 Transformer 架构中表现优于 ReLU 和其他激活函数。神经网络中最基本的操作是线性变换(如矩阵乘法和偏置加法)。如果没有非线性激活函数，无论神经网络有多少层，整个网络本质上仍然只是一个线性模型。非线性激活函数打破了这种限制，使网络能够学习复杂的非线性关系。
+[**GELU**(Gaussian Error Linear Units)](https://huggingface.co/papers/1606.08415) 是 GPT-2 的非线性激活函数，在 Transformer 架构中表现优于 ReLU 和其他激活函数。神经网络的基础运算是线性变换(矩阵乘法与偏置加法)，如果没有非线性激活函数，无论神经网络有多少层，整个网络本质上仍然只是一个线性模型。非线性激活函数打破了这种限制，使网络能够学习复杂的非线性关系。
 
 ![Gaussian Error Linear Units Figure 1: The GELU (µ = 0, σ = 1), ReLU, and ELU (α = 1)](./README.assets/gaussian_error_linear_units.png)
 
-GELU 激活函数 `GELU(x) = x * Φ(x)` 可以被理解为：将输入值 x 乘以该输入被保留的概率。这个概率由标准正态分布的累积分布函数(CDF)给出。由于标准正态分布的 CDF 计算复杂，代码使用了一个常用的近似公式：
+GELU 激活函数 `GELU(x) = x * Φ(x)` 可以被理解为：将输入值 x 乘以该输入被保留的概率，体现了一种概率性的特征选择机制。这个概率由标准正态分布的累积分布函数(CDF)给出。由于标准正态分布的 CDF 计算复杂，代码使用了一个常用的近似公式：
 
 ```python
 def gelu(x):
@@ -576,24 +576,26 @@ gelu(np.array([[1, 2], [-2, 0.5]]))
 #        [ -0.0454, 0.34571]])
 ```
 
-> 在后文的实现中，GELU 主要用在前馈神经网络部分。
+> 在GPT-2模型中，GELU主要应用于前馈神经网络(Feed-Forward Network)层，作为 MLP 中的非线性变换组件。
 
 ### 软最大值函数(Softmax)
 
-Softmax 函数在神经网络和深度学习中扮演着非常重要的角色，Softmax 的核心作用是将一组实数值(通常称为 logits)转换为概率分布。它确保所有输出值在 0 到 1 之间，并且所有值的总和为 1。在 GPT-2 等语言模型中，Softmax 用于词汇表上的概率分布，帮助模型预测序列中的下一个词。下面是最经典的 Softmax 函数(整个表达式计算的是第 i 个元素的概率值):
+Softmax 函数在神经网络和深度学习中扮演着非常重要的角色，Softmax 的核心作用是将一组实数值(通常称为 logits)转换为概率分布。它确保所有输出值在 0 到 1 之间，并且所有值的总和为 1。在 GPT-2 等语言模型中，Softmax 用于词汇表上的概率分布，帮助模型预测序列中的下一个词。下面是最经典的 Softmax 函数(其中 x_i 是输入向量的第 i 个元素，分母是所有元素指数的总和)：
 $$
 \text{softmax}(x_i) = \frac{e^{x_i}}{\sum_j e^{x_j}}
 $$
 
 ```python
 def softmax(x):
-    exp_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
+    # 数值稳定化：减去每个样本的最大值，防止指数计算溢出
     # 首先从输入 x 中减去每个样本的最大值(最大的输入值变为 0，其他值变为负数)，防止指数计算时出现数值溢出
     # 对调整后的值计算指数 `exp_x = np.exp(x - max_x)`，这将所有值转换为正数
     # axis=-1 表示沿着最后一个维度操作，对于 GPT-2 模型的输出 logits，最后一个维度的大小等于词汇表大小
     # keepdims=True 保持数组的维度结构，便于后续操作
-    return exp_x / np.sum(exp_x, axis=-1, keepdims=True)
+    exp_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
+    # 归一化：确保所有概率值的总和为1
     # 计算指数值的总和，将每个指数值除以总和，这确保输出的所有值在 0 到 1 之间，且总和为 1。
+    return exp_x / np.sum(exp_x, axis=-1, keepdims=True)
 ```
 
 ```python
@@ -601,44 +603,51 @@ x = softmax(np.array([[2, 100], [-5, 0]]))
 x
 # array([[0.00034, 0.99966],
 #        [0.26894, 0.73106]])
-x.sum(axis=-1)
+x.sum(axis=-1) # 验证概率和为 1
 # array([1., 1.])
 ```
 
-> 在后文的实现中，Softmax 主要用于注意力机制部分。
+> 在 GPT-2 模型中，Softmax 主要用于两个关键位置：(1)注意力权重的计算；(2)最终输出层生成 token 概率分布。
 
 ### 层归一化(Layer Normalization)
 
-[层归一化(Layer Normalization)](https://huggingface.co/papers/1607.06450) 是一种在深度神经网络中常用的技术，通常在神经网络的每一层应用，对每个样本的特征维度进行标准化。它的主要作用是加速网络训练过程、提高模型的稳定性、减轻内部协变量偏移(Internal covariate shift)问题、使网络对权重初始化不那么敏感等。
+[**层归一化**(Layer Normalization)](https://huggingface.co/papers/1607.06450) 是一种在深度神经网络中常用的技术，通常在神经网络的每一层应用，对每个样本的特征维度进行标准化。它的主要作用是加速网络训练过程、提高模型的稳定性、减轻内部协变量偏移(Internal covariate shift)问题、使网络对权重初始化不那么敏感等。
 
 层归一化将数据标准化为均值为 0、方差为 1 的分布，具体步骤如下：
 $$
 LayerNorm(x) = \gamma \cdot \frac{x - \mu}{\sqrt{\sigma^2}} + \beta
 $$
 
+>  μ 和 σ² 分别是特征维度上的均值和方差，γ(缩放参数)和 β(偏移参数)是可学习的参数，ε 是防止除零的小常数。
+
 ```python
 def layer_norm(x, g, b, eps: float = 1e-5):
+  	# 计算特征维度上的均值和方差
     mean = np.mean(x, axis=-1, keepdims=True)    # 对输入张量 x 在最后一个维度(通常是特征维度)上计算均值
     variance = np.var(x, axis=-1, keepdims=True) # 同样在最后一个维度上计算方差
+     # 标准化处理：减均值除以标准差
     x = (x - mean) / np.sqrt(variance + eps)     # 将输入减去均值并除以标准差，实现标准化
     																				     # eps 是一个小常数(默认为1e-5)，用于数值稳定性，防止除以零。
+    # 应用可学习的缩放和偏移参数
     return g * x + b # 使用可学习的参数 g(gamma)和 b(beta)对标准化后的数据进行线性变换
   									 # 这使网络能够学习恢复数据的表示能力
 ```
 
 ```python
+# 示例：对矩阵应用层归一化
 x = np.array([[2, 2, 3], [-5, 0, 1]])
 x = layer_norm(x, g=np.ones(x.shape[-1]), b=np.zeros(x.shape[-1]))
-x
+print(x)
 # array([[-0.70709, -0.70709,  1.41418],
 #.       [  -1.397,    0.508,    0.889]])
+# 验证归一化效果：均值接近0，方差接近1
 x.var(axis=-1)
 # array([0.99996, 1.])
 x.mean(axis=-1)
 #array([-0., -0.])
 ```
 
-> 在后文的实现中，层归一化在注意力机制和前馈网络之前都被应用。
+> 在 GPT-2 架构中，层归一化在两个关键位置应用：(1)多头注意力机制之前；(2)前馈神经网络之前，形成了"Pre-LayerNorm"结构，有助于深层网络的稳定训练。
 
 ### 线性变换(Linear)
 
