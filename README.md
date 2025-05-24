@@ -434,13 +434,13 @@ print(hparams)
 
 | 超参数    |              全称              |   值   | 描述             | 影响                                                         |
 | --------- | :----------------------------: | :----: | ---------------- | ------------------------------------------------------------ |
-| `n_vocab` |      Number of Vocabulary      | 50,257 | 词表大小         | 决定模型可识别的 token 数量                                  |
-| `n_ctx`   |    Number of Context Tokens    | 1,024  | 上下文窗口       | 限制模型能处理的最大序列长度，影响长距离依赖建模能力         |
+| `n_vocab` |      Number of Vocabulary      | 50,257 | 词表大小         | 决定模型可识别的token数量，影响模型的词汇覆盖范围和输入/输出空间大小。较大的词表能处理更多独特的词汇，但也增加了嵌入层的参数量。 |
+| `n_ctx`   |    Number of Context Tokens    | 1,024  | 上下文窗口       | 限制模型能处理的最大序列长度，直接影响模型捕获长距离依赖关系的能力。较大的上下文窗口使模型能处理更长的文本，但也增加了计算复杂度(注意力机制的计算量与序列长度的平方成正比)。 |
 | `n_embd`  | Number of Embedding Dimensions |  768   | 嵌入维度         | 控制模型表示空间的维度(宽度)，影响特征编码丰富度；更高的维度使模型能够更好地区分不同 token 之间的细微差别；维度越大，向量能够编码的信息越丰富 |
 | `n_head`  |   Number of Attention Heads    |   12   | 注意力头数       | 决定并行自注意力计算单元数量，增强多角度特征提取能力；每个头都会独立地计算注意力权重、关注输入序列的不同方面、捕捉不同类型的依赖关系；可以理解为模型观察输入序列的不同"视角"或"焦点" |
 | `n_layer` |        Number of Layers        |   12   | Transformer 层数 | 控制模型深度，影响特征抽象和组合能力；多的层使模型能够学习更抽象、更复杂的特征，低层通常捕获基本语法和简单语义、高层能够理解更复杂的语义关系和上下文；层数越多，信息可以传递的路径就越多样化 |
 
->  此外， 我们会使用  `n_seq` (Number of sequence)表示输入序列的长度，即 `n_seq = len(inputs)`。
+>  此外， 我们会使用  `n_seq` (Number of sequence)表示输入序列的长度，即 `n_seq = len(inputs)`。这是一个动态值，取决于输入数据，最大不超过 `n_ctx`。
 
 参数 `params` 是一个嵌套的  JSON 字典，用于保存模型的训练权重。JSON 的叶节点是 NumPy 数组。如果打印  `params`，并将数组替换为其形状，我们将得到：
 
@@ -478,17 +478,6 @@ print(shape_tree(params))
 # }
 ```
 
-| 参数                   | 全称                                         | 形状                            | 描述                                                         |
-| ---------------------- | -------------------------------------------- | ------------------------------- | ------------------------------------------------------------ |
-| `wpe`                  | Word Position Embeddings                     | [1024, 768]                     | 位置嵌入权重，为序列中的每个位置提供位置信息                 |
-| `wte`                  | Word Token Embeddings                        | [50257, 768]                    | 词嵌入权重，将输入 token ID 转换为向量表示                   |
-| `ln_f`                 | Layer Normalization Final                    | {"b": [768], "g": [768]}        | 最终层归一化参数，对最终输出进行归一化处理                   |
-| `blocks[].attn.c_attn` | Concatenated Attention                       | {"b": [2304], "w": [768, 2304]} | 合并的注意力投影，同时计算查询(Query)、键(Key)和值(Value)的线性变换 |
-| `blocks[].attn.c_proj` | Concatenated Projection                      | {"b": [768], "w": [768, 768]}   | 注意力输出投影参数，注意力输出的投影，将多头注意力的输出投影回原始维度 |
-| `blocks[].ln_1/ln_2`   | Layer Normalization 1、Layer Normalization 2 | {"b": [768], "g": [768]}        | 第一个层归一化，应用于自注意力子层之前；第二个层归一化，应用于前馈神经网络子层之前 |
-| `blocks[].mlp.c_fc`    | Concatenated Fully Connected                 | {"b": [3072], "w": [768, 3072]} | MLP 前向投影参数，MLP中的第一个全连接层，扩展维度（通常扩大4倍） |
-| `blocks[].mlp.c_proj`  | Concatenated Projection                      | {"b": [768], "w": [3072, 768]}  | MLP 后向投影参数，注意力输出的投影，将多头注意力的输出投影回原始维度 |
-
 为了对比，这里显示了 `params` 的形状：
 
 ```python
@@ -514,13 +503,28 @@ print(shape_tree(params))
 }
 ```
 
+| 参数                                    | 全称                         | 形状                            | 计算关系                                   | 描述                                                         |
+| --------------------------------------- | ---------------------------- | ------------------------------- | ------------------------------------------ | ------------------------------------------------------------ |
+| `wpe`(词嵌入)                           | Word Position Embeddings     | [1024, 768]                     | [n_ctx, n_embd]                            | 位置嵌入权重，为序列中的每个位置提供位置信息。将离散的 token ID 映射为连续的向量表示，是模型理解词义的基础 |
+| `wte`(位置嵌入)                         | Word Token Embeddings        | [50257, 768]                    | [n_vocab, n_embd]                          | 词嵌入权重，将输入 token ID 转换为向量表示。为序列中的每个位置提供唯一的位置编码，使模型能够区分不同位置的相同 token |
+| `ln_f`(层归一化参数)                    | Layer Normalization Final    | {"b": [768], "g": [768]}        | {"b": [n_embd], "g": [n_embd]}             | 最终层归一化参数，对最终输出进行归一化处理                   |
+| `blocks[].attn.c_attn` (注意力机制参数) | Concatenated Attention       | {"b": [2304], "w": [768, 2304]} | {"b": [3*n_embd], "w": [n_embd, 3*n_embd]} | 合并的注意力投影，同时计算查询(Q)、键(K)和值(V)的线性变换。一个关键优化，将 Q、K、V 三个投影合并为一个大矩阵，减少计算开销 |
+| `blocks[].attn.c_proj`(注意力机制参数)  | Concatenated Projection      | {"b": [768], "w": [768, 768]}   | {"b": [n_embd], "w": [n_embd, n_embd]}     | 注意力输出投影，将多头注意力的输出投影回原始维度。将多头注意力的输出重新投影到模型维度，整合不同注意力头的信息 |
+| `blocks[].ln_1/ln_2`(层归一化参数)      | Layer Normalization 1/2      | {"b": [768], "g": [768]}        | {"b": [n_embd], "g": [n_embd]}             | 层归一化参数，分别应用于自注意力子层和前馈神经网络子层之前。通过归一化激活值，稳定训练过程，减轻梯度消失/爆炸问题 |
+| `blocks[].mlp.c_fc`(多层感知机参数)     | Concatenated Fully Connected | {"b": [3072], "w": [768, 3072]} | {"b": [4*n_embd], "w": [n_embd, 4*n_embd]} | MLP 前向投影参数，扩展维度(通常扩大4倍)，增强模型的表达能力  |
+| `blocks[].mlp.c_proj``(多层感知机参数)  | Concatenated Projection      | {"b": [768], "w": [3072, 768]}  | {"b": [n_embd], "w": [4*n_embd, n_embd]}   | MLP 后向投影参数，将扩展的维度压缩回原始维度，提取关键特征   |
+
 这些是从 OpenAI TensorFlow 检查点加载的：
 
 ```python
 import tensorflow as tf
+# 加载最新的检查点文件
 tf_ckpt_path = tf.train.latest_checkpoint("models/124M")
+# 遍历检查点中的所有变量
 for name, _ in tf.train.list_variables(tf_ckpt_path):
+  	# 加载变量并移除多余的维度
     arr = tf.train.load_variable(tf_ckpt_path, name).squeeze()
+    # 输出结果展示了模型中每个参数的名称和形状
     print(f"{name}: {arr.shape}")
 # model/h0/attn/c_attn/b: (2304,)
 # model/h0/attn/c_attn/w: (768, 2304)
