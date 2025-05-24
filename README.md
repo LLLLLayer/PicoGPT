@@ -384,71 +384,65 @@ if __name__ == "__main__":
 
 4. 命令行接口：通过 [`fire.Fire(main)`](https://github.com/google/python-fire) 将 Python 脚本转换为命令行应用，支持格式：`python gpt2.py "prompt"`。
 
-## 分词器、超参数、参数
+## 分词器、模型参数与超参数
 
 `encoder` 是 GPT-2 使用的 BPE 分词器：
 
 ```python
 ids = encoder.encode("Not all heroes wear capes.")
-ids
-# [3673, 477, 10281, 5806, 1451, 274, 13]
+print(ids)
+# 输出: [3673, 477, 10281, 5806, 1451, 274, 13]
 ```
 
 使用分词器的词汇表，可以查看实际的 token：
 
 ```python
-[encoder.decoder[i] for i in ids]
-# ['Not', 'Ġall', 'Ġheroes', 'Ġwear', 'Ġcap', 'es', '.']
+tokens = [encoder.decoder[i] for i in ids]
+print(tokens)
+# 输出: ['Not', 'Ġall', 'Ġheroes', 'Ġwear', 'Ġcap', 'es', '.']
 ```
 
 请注意，有时 token 是单词(如 `Not`)，有时是前面有一个空格的单词(如 `Ġall`，[`Ġ`表示空格](https://github.com/karpathy/minGPT/blob/37baab71b9abea1b76ab957409a1cc2fbfba8a26/mingpt/bpe.py#L22-L33))，有时是部分单词(如 capes 分为  `Ġcap` 和  `es`)，有时是标点符号(如 `.`)。
 
- BPE 的一个优点是它可以编码任意字符串，若遇到词汇表中不存在的内容，它会将其分解为它能理解的子字符串：
+ **词汇表**(Vocabulary)和**字节对组合**(Byte-pair merges)是现代自然语言处理中**分词器**(Tokenizer)的核心组成部分。词汇表就像是一本"字典"，它包含了模型能够理解的所有"单词"(tokens)及其对应的数字 ID。在 GPT 模型中，这些"单词"可能是真实的单词、单个字符、或者是常见的词组片段。
+
+**字节对编码(BPE，Byte-Pair Encoding)** 是是一种数据驱动的分词算法。它首先将文本看作单个字符，然后逐步合并最常一起出现的字符对，形成新的 token，这个过程不断重复，直到达到预设的词汇量。假设"机器学习"这个词在语料库中经常出现 BPE 算法可能会将其作为一个完整的 token，而不是分解为"机"、"器"、"学"、"习"四个 token 这样可以更高效地表示常见词组。
+
+BPE 的一个优点是它可以编码任意字符串，若遇到词汇表中不存在的内容，它会将其分解为它能理解的子字符串：
 
 ```python
-[encoder.decoder[i] for i in encoder.encode("zjqfl")]
-# ['z', 'j', 'q', 'fl']
+print([encoder.decoder[i] for i in encoder.encode("zjqfl")])
+# 输出: ['z', 'j', 'q', 'fl']
 ```
 
-**词汇表(Vocabulary)**和**字节对组合(Byte-pair merges)**是现代自然语言处理中**分词器(Tokenizer)**的核心组成部分。
-
-词汇表就像是一本"字典"，它包含了模型能够理解的所有"单词"(tokens)及其对应的数字 ID。在 GPT 模型中，这些"单词"可能是真实的单词、单个字符、或者是常见的词组片段。
-
-**字节对编码(BPE，Byte-Pair Encoding)** 是一种决定如何将文本分解成 token 的算法。它首先将文本看作单个字符，然后逐步合并最常一起出现的字符对，形成新的 token，这个过程不断重复，直到达到预设的词汇量。假设"机器学习"这个词在语料库中经常出现BPE算法可能会将其作为一个完整的 token，而不是分解为"机"、"器"、"学"、"习"四个 token 这样可以更高效地表示常见词组。
-
-> 这些文件在运行 `load_encoder_hparams_and_params`时被下载。
+> 这些文件在运行 `load_encoder_hparams_and_params` 时被下载。
 >
 > 可以查看 `models/124M/encoder.json` (词汇表)和 `models/124M/vocab.bpe` (字节对组合)。
 
-**超参数(Hyperparameters)**是在模型训练开始前设置的参数，它们控制模型的结构和训练过程。`hparams` 是一个包含我们模型超参数的字典：
+**超参数**(Hyperparameters)是在模型设计和训练前确定的关键配置，它们定义了模型的架构特性和计算能力。GPT-2的核心超参数包含在`hparams`字典中：
 
 ```python
-hparams
-{ 
-   "n_vocab": 50257, # 词表中的 token 数量
-  									 #
-   "n_ctx"  : 1024,  # 输入的最大可能序列长度
-  									 #
-   "n_embd" : 768,   # 嵌入维度
-  									 # 表示每个 token 被转换成的向量维度，决定网络的"宽度"；维度越大，向量能够编码的信息越丰富；
-  									 # 更高的维度使模型能够更好地区分不同 token 之间的细微差别，维度也使模型能够捕捉更复杂的语义关系。
-  									 #
-   "n_head" : 12,    # 注意力头的数量
-  									 # 它决定了模型如何并行处理和整合不同角度的信息，对模型的性能有重要影响；可以理解为模型观察输入序列的不同"视角"或"焦点"；
-  								   # 每个头都会独立地计算注意力权重、关注输入序列的不同方面、捕捉不同类型的依赖关系。
-  									 #
-   "n_layer": 12     # 层数
-  									 # 表示 Transformer 块的堆叠数量，决定网络的"深度"；层数越多，信息可以传递的路径就越多样化
-  									 # 多的层使模型能够学习更抽象、更复杂的特征，低层通常捕获基本语法和简单语义、高层能够理解更复杂的语义关系和上下文。
-}
-# n_layer(层数)：决定深度
-# n_embd(嵌入维度)：决定宽度
-# n_head(注意力头数)：决定并行处理能力
+print(hparams)
+# 输出: {
+#    "n_vocab": 50257,
+#    "n_ctx"  : 1024,
+#    "n_embd" : 768,
+#    "n_head" : 12, 
+#    "n_layer": 12 
+# }
 ```
 
-此外， 我们会使用  `n_seq` (Number of sequence)表示输入序列的长度，即 `n_seq = len(inputs)`。
+| 超参数    |              全称              |   值   | 描述             | 影响                                                         |
+| --------- | :----------------------------: | :----: | ---------------- | ------------------------------------------------------------ |
+| `n_vocab` |      Number of Vocabulary      | 50,257 | 词表大小         | 决定模型可识别的 token 数量                                  |
+| `n_ctx`   |    Number of Context Tokens    | 1,024  | 上下文窗口       | 限制模型能处理的最大序列长度，影响长距离依赖建模能力         |
+| `n_embd`  | Number of Embedding Dimensions |  768   | 嵌入维度         | 控制模型表示空间的维度(宽度)，影响特征编码丰富度；更高的维度使模型能够更好地区分不同 token 之间的细微差别；维度越大，向量能够编码的信息越丰富 |
+| `n_head`  |   Number of Attention Heads    |   12   | 注意力头数       | 决定并行自注意力计算单元数量，增强多角度特征提取能力；每个头都会独立地计算注意力权重、关注输入序列的不同方面、捕捉不同类型的依赖关系；可以理解为模型观察输入序列的不同"视角"或"焦点" |
+| `n_layer` |        Number of Layers        |   12   | Transformer 层数 | 控制模型深度，影响特征抽象和组合能力；多的层使模型能够学习更抽象、更复杂的特征，低层通常捕获基本语法和简单语义、高层能够理解更复杂的语义关系和上下文；层数越多，信息可以传递的路径就越多样化 |
 
-`params` 是一个嵌套的  JSON 字典，用于保存模型的训练权重。JSON 的叶节点是 NumPy 数组。如果打印  `params`，并将数组替换为其形状，我们将得到：
+>  此外， 我们会使用  `n_seq` (Number of sequence)表示输入序列的长度，即 `n_seq = len(inputs)`。
+
+参数 `params` 是一个嵌套的  JSON 字典，用于保存模型的训练权重。JSON 的叶节点是 NumPy 数组。如果打印  `params`，并将数组替换为其形状，我们将得到：
 
 ```python
 import numpy as np
@@ -461,21 +455,20 @@ def shape_tree(d):
         return {k: shape_tree(v) for k, v in d.items()}
     else:
         ValueError("uh oh")
-
 print(shape_tree(params))
-# {
-#     "wpe": [ 1024, 768],                      # 位置嵌入权重(wpe)，为序列中的每个位置提供位置信息
-#     "wte": [50257, 768],                      # 词嵌入权重(wte)，将输入 token ID 转换为向量表示
-#     "ln_f": {"b": [768], "g": [768]},         # 最终层归一化参数(ln_f)，对最终输出进行归一化处理
-#     "blocks": [                               # Transformer 块(blocks)，包含多个相同结构的层，每层包含:
+# 输出: {
+#     "wpe": [ 1024, 768],
+#     "wte": [50257, 768],
+#     "ln_f": {"b": [768], "g": [768]},
+#     "blocks": [
 #         {
-#             "attn": {                         # 注意力机制(attn)
+#             "attn": {
 #                 "c_attn": {"b": [2304], "w": [768, 2304]},
 #                 "c_proj": {"b":  [768], "w": [768,  768]},
 #             },
-#             "ln_1": {"b": [768], "g": [768]}, # 层归一化(ln_1, ln_2)
+#             "ln_1": {"b": [768], "g": [768]},
 #             "ln_2": {"b": [768], "g": [768]},
-#             "mlp": {                          # 多层感知机(mlp)
+#             "mlp": {
 #                 "c_fc"  : {"b": [3072], "w": [ 768, 3072]},
 #                 "c_proj": {"b":  [768], "w": [3072,  768]},
 #             },
@@ -485,27 +478,38 @@ print(shape_tree(params))
 # }
 ```
 
+| 参数                   | 全称                                         | 形状                            | 描述                                                         |
+| ---------------------- | -------------------------------------------- | ------------------------------- | ------------------------------------------------------------ |
+| `wpe`                  | Word Position Embeddings                     | [1024, 768]                     | 位置嵌入权重，为序列中的每个位置提供位置信息                 |
+| `wte`                  | Word Token Embeddings                        | [50257, 768]                    | 词嵌入权重，将输入 token ID 转换为向量表示                   |
+| `ln_f`                 | Layer Normalization Final                    | {"b": [768], "g": [768]}        | 最终层归一化参数，对最终输出进行归一化处理                   |
+| `blocks[].attn.c_attn` | Concatenated Attention                       | {"b": [2304], "w": [768, 2304]} | 合并的注意力投影，同时计算查询(Query)、键(Key)和值(Value)的线性变换 |
+| `blocks[].attn.c_proj` | Concatenated Projection                      | {"b": [768], "w": [768, 768]}   | 注意力输出投影参数，注意力输出的投影，将多头注意力的输出投影回原始维度 |
+| `blocks[].ln_1/ln_2`   | Layer Normalization 1、Layer Normalization 2 | {"b": [768], "g": [768]}        | 第一个层归一化，应用于自注意力子层之前；第二个层归一化，应用于前馈神经网络子层之前 |
+| `blocks[].mlp.c_fc`    | Concatenated Fully Connected                 | {"b": [3072], "w": [768, 3072]} | MLP 前向投影参数，MLP中的第一个全连接层，扩展维度（通常扩大4倍） |
+| `blocks[].mlp.c_proj`  | Concatenated Projection                      | {"b": [768], "w": [3072, 768]}  | MLP 后向投影参数，注意力输出的投影，将多头注意力的输出投影回原始维度 |
+
 为了对比，这里显示了 `params` 的形状：
 
 ```python
 {
-    "wpe": [  n_ctx, n_embd],
-    "wte": [n_vocab, n_embd],
-    "ln_f": {"b": [n_embd], "g": [n_embd]},
-    "blocks": [
+    "wpe": [  n_ctx, n_embd], # 位置嵌入: [上下文长度, 嵌入维度]
+    "wte": [n_vocab, n_embd], # 词嵌入: [词汇表大小, 嵌入维度]
+    "ln_f": {"b": [n_embd], "g": [n_embd]}, # 最终层归一化: 偏置和增益
+    "blocks": [ # 每个Transformer块的参数
         {
-            "attn": {
-                "c_attn": {"b": [3*n_embd], "w": [n_embd, 3*n_embd]},
-                "c_proj": {"b": [  n_embd], "w": [n_embd,   n_embd]},
+            "attn": { # 自注意力机制
+                "c_attn": {"b": [3*n_embd], "w": [n_embd, 3*n_embd]}, # QKV 合并投影
+                "c_proj": {"b":   [n_embd], "w":   [n_embd, n_embd]}, # 输出投影
             },
-            "ln_1": {"b": [n_embd], "g": [n_embd]},
-            "ln_2": {"b": [n_embd], "g": [n_embd]},
-            "mlp": {
-                "c_fc"  : {"b": [4*n_embd], "w": [  n_embd, 4*n_embd]},
-                "c_proj": {"b": [  n_embd], "w": [4*n_embd,   n_embd]},
+            "ln_1": {"b": [n_embd], "g": [n_embd]}, # 第一层归一化
+            "ln_2": {"b": [n_embd], "g": [n_embd]}, # 第二层归一化
+            "mlp": { # 前馈神经网络
+                "c_fc"  : {"b": [4*n_embd], "w": [n_embd, 4*n_embd]}, # 扩展维度
+                "c_proj": {"b":   [n_embd], "w": [4*n_embd, n_embd]}, # 压缩回原维度
             },
         },
-        ... # repeat for n_layers
+        # ... 重复n_layer次
     ]
 }
 ```
