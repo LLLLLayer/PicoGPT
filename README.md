@@ -297,16 +297,18 @@ def train(texts: list[list[str]], params) -> dict:
 
 ```
 git clone https://github.com/LLLLLayer/PicoGPT.git
-cd picoGPT
+cd PicoGPT
 pip install -r requirements.txt
 ```
 
 项目文件包含：
 
-- **`encoder.py`** 包含 OpenAI 的 BPE(Byte Pair Encoding)分词器(Tokenizer)的代码，来自 [openai gpt-2](https://github.com/openai/gpt-2/blob/master/src/encoder.py)；
-- **`utils.py`** 包含下载和加载 GPT-2 模型的权重、分词器和超参数的代码；
-- **`gpt2.py`** 包含实际的 GPT 模型的代码及完整的注释描述，可直接运行；
-- **`gpt2_pico.py `**与 `gpt2.py` 相同，但省去了注释部分。
+| 文件名             | 功能描述                                                     |
+| ------------------ | ------------------------------------------------------------ |
+| **`encoder.py`**   | OpenAI 的 BPE(Byte Pair Encoding)分词器实现，源自 [openai gpt-2](https://github.com/openai/gpt-2/blob/master/src/encoder.py) |
+| **`utils.py`**     | 提供下载和加载 GPT-2 模型权重、分词器和超参数的工具函数      |
+| **`gpt2.py`**      | 完整实现的 GPT-2 模型代码，包含详细注释，可直接运行          |
+| **`gpt2_pico.py`** | 与 `gpt2.py` 功能相同的精简版本，移除了注释以突显核心代码    |
 
 首先
 
@@ -314,27 +316,33 @@ pip install -r requirements.txt
 import numpy as np
 
 def gpt2(inputs, wte, wpe, blocks, ln_f, n_head):
-    pass # TODO: 待实现
+    # GPT-2 模型的前向传播函数
+    pass # 参数于后文释意、方法待实现
 
 def generate(inputs, params, n_head, n_tokens_to_generate):
+  	# 使用自回归方式生成文本
     from tqdm import tqdm
     # 自回归解码循环
-    for _ in tqdm(range(n_tokens_to_generate), "generating"): 
-        logits = gpt2(inputs, **params, n_head=n_head)  # 模型前向传播
-        next_id = np.argmax(logits[-1])                 # 贪婪采样
-        inputs.append(int(next_id))                     # 将预测结果添加到输入中
-
-    return inputs[len(inputs) - n_tokens_to_generate :] # 只返回生成的 id
+    for _ in tqdm(range(n_tokens_to_generate), "generating"):
+        # 模型前向传播
+        logits = gpt2(inputs, **params, n_head=n_head)
+        # 贪婪采样
+        next_id = np.argmax(logits[-1])
+        # 将预测结果添加到输入中
+        inputs.append(int(next_id))
+    # 只返回新生成的 token ID
+    return inputs[len(inputs) - n_tokens_to_generate :] 
 
 def main(prompt: str, n_tokens_to_generate: int = 40, model_size: str = "124M", models_dir: str = "models"):
     from utils import load_encoder_hparams_and_params
     # 从 openai gpt-2 文件中加载编码器、超参数和参数
+    # 这将下载必要的文件到 models/124M 中
     encoder, hparams, params = load_encoder_hparams_and_params(model_size, models_dir)
 
     # 使用 BPE 分词器对输入字符串进行编码
     input_ids = encoder.encode(prompt)
 
-    # 确保我们不超过模型的最大序列长度
+    # 确保不超过模型的最大序列长度
     assert len(input_ids) + n_tokens_to_generate < hparams["n_ctx"]
 
     # 生成输出 token
@@ -352,39 +360,29 @@ if __name__ == "__main__":
 
 上述代码包含四个部分：
 
-1. `gpt2` 函数是我们将要实现的 GPT。函数签名中除了 `inputs`，还有其它的参数：
+1. `gpt2` 函数：我们将要实现的 GPT。函数签名中除了 `inputs`，还有其它的参数：
 
-   - `wte`、`wpe`、 `blocks`、 `ln_f` 是模型的参数；
-   - `n_head` 是前向传播过程中需要的超参数；
+   1. 模型参数：`wte`(词嵌入矩阵)、`wpe`(位置嵌入矩阵)、`blocks`(Transformer 块序列)、`ln_f`(最终层归一化)；
 
-2. `generate` 函数是自回归解码，为了简洁，这里将使用贪婪解码；
+   2. 超参数：`n_head`(注意力头数量，控制并行自注意力计算)。
 
-   - [`tqdm`](https://github.com/tqdm/tqdm) 提供进度，以直观地看到解码过程；
+2. `generate` 函数：实现自回归生成过程，为了简洁这里将使用贪婪解码；
 
-3. `main` 函数：
+   1. [`tqdm`](https://github.com/tqdm/tqdm) 提供进度，以直观地看到解码过程。
 
-   1. 加载分词器(`encoder`)、模型权重(`params`)、超参数(`hparams`)；
+3. `main` 函数：协调整体工作流程：
 
-      ```python
-      # 这将下载必要的文件到 models/124M 中
-      from utils import load_encoder_hparams_and_params
-      encoder, hparams, params = load_encoder_hparams_and_params("124M", "models")
-      ```
+   1. 初始化模型环境：加载分词器(`encoder`)、模型权重(`params`)、超参数(`hparams`)；
 
-      > 在很多NLP库中，"encoder" 这个术语有时会用来指代包含 tokenization 功能的对象.
-      >
-      > 在示例的代码中，encoder 对象实际上是一个tokenizer，它包含:
-      >
-      > - encode 方法：将文本转换为token ID(tokenizer功能)；
-      > - decoder 属性：将 token ID 映射回文本表示。
+      > 在 NLP 领域，"encoder"术语通常指执行编码转换的组件。在本代码中，`encoder`对象实际实现了分词器(Tokenizer)功能，具体包含：`encode` 方法 (执行文本到 token ID 序列的转换)、`decoder` 属性 (维护 token ID 到原始文本的反向映射表)。
 
-   2. 使用 BPE 分词器对输入字符串进行编码；
+   2. 输入处理：使用 BPE 算法将输入文本转换为模型可处理的 token ID 序列；
 
-   3. 调用 `generate` 函数生成输出 token；
+   3. 文本生成：调用 `generate` 函数执行自回归推理，产生后续 token 序列；
 
-   4. 将 token 解码回字符串以输出；
+   4.  输出处理：将生成的token ID序列通过解码器映射回可读文本。
 
-4. [`fire.Fire(main)`](https://github.com/google/python-fire) 让文件变成 CLI 应用程序，最终可以使用命令运行代码：`python gpt2.py "some prompt here"`。
+4. 命令行接口：通过 [`fire.Fire(main)`](https://github.com/google/python-fire) 将 Python 脚本转换为命令行应用，支持格式：`python gpt2.py "prompt"`。
 
 ## 分词器、超参数、参数
 
