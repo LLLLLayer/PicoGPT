@@ -1,46 +1,34 @@
-# PicoGPT / 60 行 NumPy 实现 GPT
-PicoGPT is an unnecessarily tiny and minimal implementation of [GPT-2](https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) in plain [NumPy](https://numpy.org). The entire forward pass code is [40 lines of code](https://github.com/jaymody/picoGPT/blob/main/gpt2_pico.py#L3-L41).
+# PicoGPT / 60 行 NumPy 实现 GPT-2
+# 项目
 
-> This project is forked from [jaymody/picoGPT](https://github.com/jaymody/picoGPT). 
->
-> The article content is translated and edited from  [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/).
+PicoGPT 是一个使用 NumPy 的 GPT-2 的极简实现，可执行代码仅 60 行，前向传播部分代码有 40 行代码 。
 
-## Dependencies
+本项目从  [jaymody/picoGPT](https://github.com/jaymody/picoGPT) 分叉而来，文章内容翻译和整理自  [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)。
+
+## 依赖项
 
 ```bash
 pip install -r requirements.txt
 ```
-Tested on `Python 3.9.10`.
+已在 `Python 3.9.10` 上测试。
 
-## Usage
+## 使用
 
 ```bash
 python gpt2.py "Alan Turing theorized that computers would one day become"
 ```
 
-Which generates:
-
-```
-the most powerful machines on the planet.
-
-The computer is a machine that can perform complex calculations, and it can perform these calculations in a way that is very similar to the human brain.
-```
-
-You can also control the number of tokens to generate, the model size (one of `["124M", "355M", "774M", "1558M"]`), and the directory to save the models:
-
-```bash
-python gpt2.py \
-    "Alan Turing theorized that computers would one day become" \
-    --n_tokens_to_generate 40 \
-    --model_size "124M" \
-    --models_dir "models"
-```
-
-
+>  生成内容：
+>
+> ```
+> the most powerful machines on the planet.
+> 
+> The computer is a machine that can perform complex calculations, and it can perform these calculations in a way that is very similar to the human brain.
+> ```
 
 # 前言
 
-在本文中，我们将用 60 行代码实现一个 GPT，结合 OpenAI 发布的经过训练的 GPT-2 模型权，生成一些文本。
+在本文中，我们将用 60 行代码实现一个 GPT，结合 OpenAI 发布的经过训练的 GPT-2 模型权重，生成一些文本。
 
 - 本文假定读者熟悉 Python，Numpy，还有一些训练神经网络的基本经验。
 - 此实现是以教育为目的，它故意缺少许多功能，以尽可能简单的同时保持完整性。
@@ -55,43 +43,40 @@ python gpt2.py \
 
 > Transformer 原本有“编码器”和“解码器”两部分，编码器负责理解输入，解码器负责生成输出。GPT 只保留了解码器部分，所以叫“decoder-only”。
 
-像 OpenAI 的 GPT-3 这样的大型语言模型 (LLM, Large Language Models)的的底层都是 GPT。它们的特殊之处在于：经过大量数据的训练、规模非常大：
+像 OpenAI 的 GPT-3 这样的大型语言模型 (LLM, Large Language Models)的的底层都是 GPT。它们的特殊之处在于：经过大量数据的训练、规模非常大，如：
 
 1. [OpenAI GPT-3](https://huggingface.co/papers/2005.14165)：参数量约 1750 亿(175B)，训练数据约 3000 亿个 token，数据量 45TB 左右；
 2. [Google LaMDA](https://huggingface.co/papers/2201.08239)：LaMDA 1 代约 1370 亿(137B)，在预训练阶段收集并创建了一个具有 1.56T 单词的数据集。
 
 ## 输入和输入
 
-一个 GPT 的函数签名类似这样：
+GPT 的函数签名类似这样：
 
 ```python
 def gpt(inputs: list[int]) -> list[list[float]]:
-    #
-    # inputs 的形状是 [n_seq]
-    # [n_seq] 表示这是一个一维数组，长度为 n_seq
-    # 在 NLP 里，通常表示一个序列(比如一句话里有多少个 token)
-    #
-    # output 的形状是 [n_seq, n_vocab]
-    # 表示这是一个二维数组，有 n_seq 行、 n_vocab 列
-    # 在 NLP 里，通常表示每个 token 的输出是一个长度为 n_vocab 的向量，比如每个 token 预测词表中每个词的概率
-    #
-    output = # 神经网络的神奇魔法
+    # 参数: 
+    # inputs 的形状是 [n_seq]，表示这是一个一维数组，长度为 n_seq
+    # 通常表示一个输入的 token ID 序列，即一句话中的各个 token 对应的 ID 序列
+    # 返回:
+    # output 的形状是 [n_seq, n_vocab]，表示这是一个二维数组，有 n_seq 行、 n_vocab 列
+    # 每行表示对应位置 token 的下一个 token 的概率分布，其中 n_vocab 是词表大小，每个元素表示对应词的预测概率
+    output = # 神经网络的神奇魔法(前向传播计算)
     return output
 ```
 
-输入是一些文本，这些文本被表示成一串整数序列，每个整数都与文本中的 token 对应：
+输入的文本被表示成一串整数序列，每个整数都与文本对应：
 
 ```python
-# 整数表示文本中的 token，例如：
+# 整数表示文本中的 token ID，例如：
 # text  = "not all heroes wear capes"
 # token = "not" "all" "heroes" "wear" "capes"
 inputs =    [1,    0,       2,     4,      6]
 ```
 
-token 是文本的小片段，它们由某种**分词器(Tokenizer)**产生。我们可以通过一个**词表(Vocabulary)**将 token 映射为整数：
+token 是文本的基本语言单元，它们由某种**分词器**(Tokenizer)产生。我们可以通过一个**词表**(Vocabulary)将 token 映射为整数：
 
 ```python
-# 词表中每个 token 的 index 就是该 token 的整数 id
+# 词表中每个 token 的 index 就是该 token 的整数 ID
 # 例如 "heroes" 的 index 是 2，因为 vocab[2] = "heroes"
 vocab = ["all", "not", "heroes", "the", "wear", ".", "capes"]
 
@@ -112,11 +97,11 @@ text = tokenizer.decode(ids) # text = "not all heroes wear"
 
 在实际中，我们会使用一些更高级的分词器，如 [Byte-Pair Encoding](https://huggingface.co/learn/llm-course/chapter6/5) 或者 [WordPiece](https://huggingface.co/learn/llm-course/chapter6/6?fw=pt) 等，其原理是一致的：
 
-1. 有一个 `vocab` 将字符串标记映射到整数索引；
+1. 有一个 `vocab` 将字符串映射到整数索引；
 2. 有一种 `encode` 方法可以转换 `str -> list[int]`；
 3. 有一种 `decode` 方法可以转换 `list[int] -> str`。
 
-输出是一个二维数组，其中 `output[i][j]` 表示模型的预测概率，这个概率代表了词汇表中位于 `vocab[j]` 的 token 是下一个 token `inputs[i+1]` 的概率，如：
+GPT 输出是一个二维数组，其中 `output[i][j]` 表示模型的预测概率，这个概率代表了词汇表中位于 `vocab[j]` 的 token 是下一个 token `inputs[i+1]` 的概率，如：
 
 ```python
 vocab = ["all", "not", "heroes", "the", "wear", ".", "capes"]
