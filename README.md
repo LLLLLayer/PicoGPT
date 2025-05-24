@@ -263,15 +263,31 @@ def train(texts: list[list[str]], params) -> dict:
 
 ## 提示(Prompting)
 
-最初的 [Improving Language Understanding by Generative Pre-Training](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) (GPT-1)介绍了一种使用 Transformer 架构的生成式预训练模型，提出了一种两阶段训练方法：首先在大量无标注文本上进行预训练、然后在有标注数据上进行微调。一个 117M 参数规模的 GPT 预训练模型，在针对下游任务的标注数据上微调之后，它能够在各种**自然语言处理(NLP, Natural language processing)**任务上达到最优性能。
+2018年发表的 [Improving Language Understanding by Generative Pre-Training](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) 论文首次提出了GPT-1模型，介绍了一种使用 Transformer 架构的生成式预训练模型，该研究确立了如今广泛采用的两阶段训练范式：(1)在海量无标注文本上进行自监督预训练；(2)在特定任务的标注数据上进行有监督微调。验表明，拥有1.17 亿参数的 GPT-1模型经过微调后，在多种**自然语言处理**(NLP, Natural Language Processing)任务上取得了当时最先进的性能，证明了这种预训练-微调范式的有效性。
 
-直到 [Language Models are Unsupervised Multitask Learners ](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)和 [Language Models are Few-Shot Learners](https://arxiv.org/abs/2005.14165) (GPT-2/GPT-3)论文发表，我们意识到，一个用足够多的数据和参数预训练的 GPT 模型，能够独立执行任意任务，无需微调，模型具备了**涌现能力(Emergent abilities)**。只要对模型进行**提示(Prompt)**，模型就会给出合适的响应。这被称为**上下文学习(In-context learning)**，因为模型仅使用提示的上下文来执行任务。上下文学习可以是**零样本学习(Zero-shot)**、**单样本学习(One-shot)**或**少样本学习(Few-shot)**：
+随着2019年的 Language Models are Unsupervised Multitask Learners (GPT-2)和2020年的 Language Models are Few-Shot Learners (GPT-3)论文发表，研究人员发现了一个突破性现象：当模型规模和训练数据量达到足够大时，语言模型会表现出 涌现能力(Emergent Abilities) ——能够在没有任何参数更新的情况下执行全新任务。这种能力通过 提示工程(Prompting) 来激活，即通过精心设计的文本指令引导模型执行特定任务。这种新范式被称为 上下文学习(In-context Learning) ，根据提示中包含的示例数量，可分为三种模式：
+
+随着2019年 [Language Models are Unsupervised Multitask Learners ](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) GPT-2 和 [Language Models are Few-Shot Learners](https://arxiv.org/abs/2005.14165) GPT-3 论文发表，研究人员发现：当模型规模和训练数据量达到足够大时，语言模型会表现出**涌现**能力(Emergent Abilities) ——能够在没有任何参数更新的情况下执行全新任务。
+
+这种能力通过**提示工程**(Prompting) 来激活，即通过精心设计的文本指令引导模型执行特定任务。这种新范式被称为**上下文学习**(In-context Learning) ，根据提示中包含的示例数量，可分为三种模式：
+
+- 零样本学习(Zero-shot Learning) ：提示中不包含任何完成任务的示例；
+- 单样本学习(One-shot Learning) ：提示中包含一个示例；
+- 少样本学习(Few-shot Learning) ：提示中包含少量示例。
 
 ![Language Models are Few-Shot Learners Figure 2.1: Zero-shot, one-shot and few-shot, contrasted with traditional fine-tuning](./README.assets/zero_shot_one_shot_and_few_shot_contrasted_with_traditional_fine_tuning.png)
 
-基于提示内容生成文本也被称之为**条件生成(Conditional generation)**，因为我们的模型是基于特定的输入(条件)进行内容生成的。
+这种基于提示的文本生成在技术上被称为**条件生成**(Conditional Generation) ——模型的输出受到输入提示(条件)的约束和引导。
 
-GPT 不仅限于自然语言处理任务(NLP)，它可以应用于各种条件下的场景。你可以将模型用于任何你想要的条件下。你可以将 GPT 变成一个聊天机器人，这种情况下，模型的条件就是你的对话历史。模型会根据之前的对话内容来生成合适的回复。通过合理设计提示词，可以在很大程度上控制模型的输出行为，但同时也需要注意其潜在的局限性。
+值得注意的是，GPT 模型的应用远超传统的自然语言处理任务范畴。通过不同的提示设计，同一个模型可以：
+
+1. 执行文本摘要、翻译、问答等多种语言任务；
+
+2. 生成代码、解决数学问题等结构化任务；
+3. 作为对话系统的核心，其中对话历史作为条件引导回复生成；
+4. 处理多模态任务(如在 GPT-4)。
+
+**提示工程**(Prompt Engineering)已成为一门重要技术，通过精心设计提示可以显著提升模型性能，但同时也需认识到模型在事实准确性、偏见、幻觉等方面的固有局限。
 
 # 实现 GPT
 
