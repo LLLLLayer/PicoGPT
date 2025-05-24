@@ -131,9 +131,9 @@ next_token_id = np.argmax(output[-1]) # next_token_id = 6
 next_token = vocab[next_token_id]     # next_token = "capes"
 ```
 
-将具有最高概率的 token 作为结果，叫做**[贪婪解码(Greedy decoding)](https://docs.cohere.com/docs/controlling-generation-with-top-k-top-p#1-pick-the-top-token-greedy-decoding)**或者**贪婪采样(Greedy sampling)**。
+将具有最高概率的 token 作为结果，叫做[**贪婪解码**(Greedy decoding)](https://docs.cohere.com/docs/controlling-generation-with-top-k-top-p#1-pick-the-top-token-greedy-decoding)或者**贪婪采样**(Greedy sampling)。
 
-预测序列中下一个最合理单词的任务被称为**语言建模(Language modeling)**，我们可以把 GPT 称为一种**语言模型(Language model)**。
+预测序列中下一个最合理单词的任务被称为**语言建模**(Language modeling)，我们可以把 GPT 称为一种**语言模型**(Language model)。
 
 ## 生成文本
 
@@ -154,14 +154,14 @@ output_ids = generate(input_ids, 3)            # output_ids = [2, 4, 6]
 output_tokens = [vocab[i] for i in output_ids] # "heroes" "wear" "capes"
 ```
 
-预测未来值(Regression)并将其添加回输入(auto)的过程就是 GPT 被描述为**自回归(Autoregressive)**的原因。
+模型对序列元素进行回归分析(Regression)，预测未来值并将其自动添加回输入的过程就是 GPT 被描述为**自回归**(Autoregressive)的原因。
 
 ### 采样(Sampling)
 
-我们可以通过按照概率分布随机选择一个 token 来引入一些**随机性(Stochasticity)**：
+我们在选择 token 时可以引入一些**随机性**(Stochasticity)：
 
 ```python
-inputs = [1, 0, 2, 4] # "not" "all" "heroes" "wear"
+inputs = [1, 0, 2, 4] # "not" "all" "heroes" "wear" 的 token ID
 output = gpt(inputs)
 np.random.choice(np.arange(vocab_size), p=output[-1]) # capes
 np.random.choice(np.arange(vocab_size), p=output[-1]) # hats
@@ -170,22 +170,40 @@ np.random.choice(np.arange(vocab_size), p=output[-1]) # capes
 np.random.choice(np.arange(vocab_size), p=output[-1]) # pants
 ```
 
-这使我们能够针对相同的输入生成不同的句子。当与 [**top-k**](https://docs.cohere.ai/docs/controlling-generation-with-top-k-top-p#2-pick-from-amongst-the-top-tokens-top-k)、[**top-p**](https://docs.cohere.ai/docs/controlling-generation-with-top-k-top-p#3-pick-from-amongst-the-top-tokens-whose-probabilities-add-up-to-15-top-p) 和 [**temperature **](https://docs.cohere.ai/docs/temperature)等在采样前修改分布的技术结合使用时，我们的输出质量将得到显著提升。这些技术还引入了一些**超参数(Hyperparameter)**，这些超参数由开发者在训练开始前手动设定的参数，而不是通过模型自动学习得到的参数。我们可以尝试调整这些超参数来获得不同的生成行为。
+通过随机采样，我们可以基于相同的输入生成多样化的文本。
 
-> 1. top-k ：每次只在概率最高的前 k 个词里随机选一个，增加多样性，避免总是选概率最大的词。
-> 2. top-p ：每次只在累计概率达到 p 的词集合里随机选一个，动态控制候选词数量，进一步提升生成的自然度和多样性。
-> 3. temperature ：通过调整概率分布的“平滑度”，温度高时生成更随机，温度低时生成更确定。
+结合 [top-k](https://docs.cohere.ai/docs/controlling-generation-with-top-k-top-p#2-pick-from-amongst-the-top-tokens-top-k)、[top-p](https://docs.cohere.ai/docs/controlling-generation-with-top-k-top-p#3-pick-from-amongst-the-top-tokens-whose-probabilities-add-up-to-15-top-p) 和 [temperature](https://docs.cohere.ai/docs/temperature) 等采样策略，可以显著提升生成文本的质量和多样性。这些技术还引入了一些**超参数**(Hyperparameter)，这些参数需要在训练前由开发者手动设定，而非通过模型学习获得。通过调整这些超参数，我们可以控制模型的生成行为，实现从保守到创造性的不同生成风格。
+
+> 1. top-k ：在每一步生成中，仅从概率最高的k个词汇中采样，有效平衡了确定性和多样性，防止模型总是选择最高概率的词。
+> 2. top-p ：动态选择累积概率达到阈值 p 的最小词汇集合进行采样，相比 top-k 更灵活，能根据概率分布的形状自适应调整候选集大小。
+> 3. temperature ：通过缩放logits(logits/temperature)调整概率分布的锐度，较低的温度(如 0.7)使分布更集中，生成更可预测；较高的温度(如 1.3)使分布更平坦，生成更多样化但可能不太连贯。
 
 ## 训练(Training)
 
-我们与训练其它神经网络一样，**损失函数(Loss Function)**是衡量模型预测结果与真实结果之间差距的一个函数，针对特定的损失函数，使用[梯度下降(Gradient descent optimization algorithms)](https://huggingface.co/papers/1609.04747)训练 GPT，即根据损失函数对参数的导数(梯度)，沿着让损失变小的方向，微调模型参数。
+我们与训练其它神经网络一样，**损失函数**(Loss Function)是衡量模型预测结果与真实结果之间差距的一个函数，针对特定的损失函数，使用[**梯度下降**(Gradient descent optimization algorithms)](https://huggingface.co/papers/1609.04747)训练 GPT，该方法计算损失函数相对于模型参数的梯度(导数)，然后沿着能够减小损失的方向调整参数。
 
-在这里，我们使用**语言建模任务(Language Modeling)**即给定一段文本的前面部分，预测下一个最有可能出现的 token 的任务的[**交叉熵损失(Cross Entropy Loss)**](https://www.youtube.com/watch?v=ErfnhcEV1O8)损失函数：假设有三个类别，真实标签是类别 2，模型预测概率为 [0.1, 0.7, 0.2]，那么交叉熵损失就是 -log(0.7)。如果模型预测概率为 [0.1, 0.2, 0.7]，损失就是 -log(0.2)，显然损失更大，因为模型预测错了。具体可见代码：
+对于GPT，我们使用**语言建模任务**(Language Modeling)——给定一段文本的前面部分，预测下一个最有可能出现的 token 的任务的[**交叉熵损失**(Cross Entropy Loss)](https://www.youtube.com/watch?v=ErfnhcEV1O8)损失函数：
+
+> 假设有三个类别，真实标签是类别 2：
+>
+> 1. 如果模型预测概率分布为 `[0.1, 0.7, 0.2]`(正确地给了类别 2 最高概率)，损失值为 -log(0.7)≈0.36；
+> 2. 如果模型预测概率分布为 `[0.1, 0.2, 0.7]`(错误地给了类别 3 最高概率)，损失值为 -log(0.2)≈1.61；
+>
+> 显然第二种情况损失更大，这正是我们期望的——模型预测错误时应当受到更大的惩罚。
 
 ```python
 def lm_loss(inputs: list[int], params) -> float:
+  	# 计算语言模型的交叉熵损失
+    # 参数：
+    # inputs: 输入 token ID 序列，例如 [not, all, heroes, wear, capes]
+    # params: 模型参数
+    # 返回：
+    # float: 平均交叉熵损失值
+    #
+    # 构建 输入-标签 对：
+    # 输入 x 是除最后一个 token 外的序列，标签是除第一个 token 外的序列
     # 标签 y 只是 inputs 向左移动 1 位
-    # 
+    # 例如：
     # inputs = [not, all, heroes, wear, capes]
     #      x = [not, all, heroes, wear]
     #      y =      [all, heroes, wear, capes]
@@ -194,33 +212,40 @@ def lm_loss(inputs: list[int], params) -> float:
     # 两者的形状都是 [序列中的 token 数 - 1]
     x, y = inputs[:-1], inputs[1:] 
     
-    # 前向传播(Forward pass): 把输入数据依次通过神经网络的每一层，最终得到输出。
-    #
-    # 在每个位置预测的下一个 token 的概率分布
+    # 前向传播(Forward pass)：获取模型在每个位置对下一个 token 的预测概率分布
     output = gpt(x, params) # 形状为 [序列中的 token 数 - 1, 词表中的 token 数]
     
-    # 交叉熵损失
-    # 我们对所有 N-1 个示例取平均值
-    # 对于二维数组 output ，在第 i 行，取第 y[i] 列的元素
-    # 最终得到的是一个一维数组，长度等于行数，每个元素就是模型在该位置预测真实下一个 token 的概率
+    # 计算交叉熵损失：
+    # -log(p(y_i))，其中 p(y_i) 是模型对真实下一个 token 的预测概率
+    # np.arange(len(output)) 生成行索引，y 提供列索引，共同定位每个位置的真实 token 概率
+    # np.mean(token_losses) 返回平均损失
     loss = np.mean(-np.log(output[np.arange(len(output)), y]))
     
+    # 最终得到的是一个一维数组，长度等于行数，每个元素就是模型在该位置预测真实下一个 token 的概率
     return loss
 
-def train(texts: list[list[str]], params) -> float:
+def train(texts: list[list[str]], params) -> dict:
+    # 训练语言模型
+    # 参数：
+    # texts: 训练文本列表
+    # params: 初始模型参数
+    # 返回：
+    # dict: 训练后的模型参数
     for text in texts:
       	#
       	# 用 tokenizer.encode(text) 把文本转成 token id 的序列，方便模型处理
         inputs = tokenizer.encode(text)
         #
+        # 计算当前样本的损失：
         # 计算当前模型在这条数据上的损失，衡量模型预测和真实答案的差距
         loss = lm_loss(inputs, params)
         #
-        # 反向传播算法(backpropagation): 根据损失函数的结果，自动计算每个参数对损失的影响,用于指导参数如何调整
-        #
+        # 计算梯度：
+        # 反向传播算法(Backpropagation): 根据损失函数的结果，自动计算每个参数对损失的影响，用于指导参数如何调整
         # 通过反向传播算法计算损失对参数的梯度，即每个参数该怎么调整能让损失变小
         gradients = compute_gradients_via_backpropagation(loss, params)
         #
+        # 使用梯度下降更新参数：
         # 根据梯度调整参数，即“优化”模型，让模型表现更好
         params = gradient_descent_update_step(gradients, params)
     #
@@ -230,11 +255,11 @@ def train(texts: list[list[str]], params) -> float:
 
 这就是一个极度简化但典型的神经网络训练循环：编码输入、计算损失、反向传播求梯度、用梯度下降法更新参数。不断重复这个过程，模型就会越来越“聪明”，预测能力越来越强。
 
-请注意，我们在这里并未使用明确的标注数据。取而代之的是使用原始文本自身，产生大量的输入/标签对(input/label pairs)。这就是所谓的**[自监督学习(Self-supervised learning)](https://en.wikipedia.org/wiki/Self-supervised_learning)**。自监督使我们能够大规模扩展训练数据。我们只需要获取尽可能多的原始文本，并将其输入到模型中即可。例如，GPT-3 使用了来自互联网和书籍的 3000 亿个文本 tokens 进行训练，以下图表来自[Language Models are Few-Shot Learners](https://huggingface.co/papers/2005.14165)：
+值得注意的是，语言模型训练不需要人工标注的数据。相反，我们利用文本数据本身的内在结构——每个 token 都可以作为其前面 tokens 的预测目标，从而自动生成无限量的"输入-目标"对。这种方法被称为[**自监督学习**(Self-supervised learning)](https://en.wikipedia.org/wiki/Self-supervised_learning)。自监督使我们能够大规模扩展训练数据。我们只需要获取尽可能多的原始文本，并将其输入到模型中即可。例如，GPT-3 使用了来自互联网和书籍的 3000 亿个文本 tokens 进行训练，以下图表来自[Language Models are Few-Shot Learners](https://huggingface.co/papers/2005.14165)：
 
 ![Language Models are Few-Shot Learners Table 2.2: Datasets used to train GPT-3](./README.assets/datasets_used_to_train_gpt_3.png)
 
-这个自监督训练的步骤称之为**预训练(Pre-training)**，我们可以重复使用预训练模型权重来训练下游任务上的特定模型，预训练模型有时也被称为**基础模型(Foundation models)**。在下游任务上训练模型被称之为**微调(Fine-tuning)**，因为模型权重已经过预先训练以理解语言，因此它只是针对手头的特定任务进行微调。这种“在通用任务上预训练+在特定任务上微调”的策略，称之为**[迁移学习(Transfer learning)](https://en.wikipedia.org/wiki/Transfer_learning)**。
+这个自监督训练的步骤称之为**预训练**(Pre-training)，我们可以重复使用预训练模型权重来训练下游任务上的特定模型，预训练模型有时也被称为**基础模型**(Foundation models)。在下游任务上训练模型被称之为**微调**(Fine-tuning)，因为模型权重已经过预先训练以理解语言，因此它只是针对手头的特定任务进行微调。这种“在通用任务上预训练+在特定任务上微调”的策略，称之为[**迁移学习**(Transfer learning)](https://en.wikipedia.org/wiki/Transfer_learning)。
 
 ## 提示(Prompting)
 
