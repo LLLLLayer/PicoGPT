@@ -191,7 +191,7 @@ np.random.choice(np.arange(vocab_size), p=output[-1]) # pants
 
 > 1. Top-k ：在每一步生成中，仅从概率最高的k个词汇中采样，有效平衡了确定性和多样性，防止模型总是选择最高概率的词。
 > 2. Top-p ：动态选择累积概率达到阈值 p 的最小词汇集合进行采样，相比 top-k 更灵活，能根据概率分布的形状自适应调整候选集大小。
-> 3. Temperature ：通过缩放logits(logits/temperature)调整概率分布的锐度，较低的温度(如 0.7)使分布更集中，生成更可预测；较高的温度(如 1.3)使分布更平坦，生成更多样化但可能不太连贯。
+> 3. Temperature ：通过缩放 logits(logits/temperature) 调整概率分布的锐度，较低的温度(如 0.7)使分布更集中，生成更可预测；较高的温度(如 1.3)使分布更平坦，生成更多样化但可能不太连贯。
 >
 > Temperature 示例：“I am driving a…”
 >
@@ -200,6 +200,8 @@ np.random.choice(np.arange(vocab_size), p=output[-1]) # pants
 ## 训练(Training)
 
 我们与训练其它神经网络一样，**损失函数**(Loss Function)是衡量模型预测结果与真实结果之间差距的一个函数，针对特定的损失函数，使用[**梯度下降**(Gradient descent optimization algorithms)](https://huggingface.co/papers/1609.04747)训练 GPT，该方法计算损失函数相对于模型参数的梯度(导数)，然后沿着能够减小损失的方向调整参数。
+
+![Hands-On Large Language Models Figure 10-10. Multiple negatives ranking loss aims to minimize the distance between related pairs of text, such as questions and answers, and maximize the distance between unrelated pairs, such as questions and unrelated answers.](./README.assets/loss_aims.png)
 
 对于GPT，我们使用**语言建模任务**(Language Modeling)——给定一段文本的前面部分，预测下一个最有可能出现的 token 的任务的[**交叉熵损失**(Cross Entropy Loss)](https://www.youtube.com/watch?v=ErfnhcEV1O8)损失函数：
 
@@ -280,6 +282,12 @@ def train(texts: list[list[str]], params) -> dict:
 
 这个自监督训练的步骤称之为**预训练**(Pre-training)，我们可以重复使用预训练模型权重来训练下游任务上的特定模型，预训练模型有时也被称为**基础模型**(Foundation models)。在下游任务上训练模型被称之为**微调**(Fine-tuning)，因为模型权重已经过预先训练以理解语言，因此它只是针对手头的特定任务进行微调。这种“在通用任务上预训练+在特定任务上微调”的策略，称之为[**迁移学习**(Transfer learning)](https://en.wikipedia.org/wiki/Transfer_learning)。
 
+
+
+![Hands-On Large Language Models Figure 1-30. Compared to traditional machine learning, LLM training takes a multistep approach.](./README.assets/compared_to_traditional_machine_learning.png)
+
+> 传统的机器学习通常涉及针对特定任务(例如分类)训练模型，我们认为这是一个单步过程：![Hands-On Large Language Models Figure 1-29. Traditional machine learning involves a s](./README.assets/traditional_machine_learning_involves_a_single_step.png)
+
 ## 提示(Prompting)
 
 2018年发表的 [Improving Language Understanding by Generative Pre-Training](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) 论文首次提出了GPT-1模型，介绍了一种使用 Transformer 架构的生成式预训练模型，该研究确立了如今广泛采用的两阶段训练范式：(1)在海量无标注文本上进行自监督预训练；(2)在特定任务的标注数据上进行有监督微调。验表明，拥有1.17 亿参数的 GPT-1模型经过微调后，在多种**自然语言处理**(NLP, Natural Language Processing)任务上取得了当时最先进的性能，证明了这种预训练-微调范式的有效性。
@@ -287,6 +295,10 @@ def train(texts: list[list[str]], params) -> dict:
 随着2019年的 Language Models are Unsupervised Multitask Learners (GPT-2)和2020年的 Language Models are Few-Shot Learners (GPT-3)论文发表，研究人员发现了一个突破性现象：当模型规模和训练数据量达到足够大时，语言模型会表现出 涌现能力(Emergent Abilities) ——能够在没有任何参数更新的情况下执行全新任务。这种能力通过 提示工程(Prompting) 来激活，即通过精心设计的文本指令引导模型执行特定任务。这种新范式被称为 上下文学习(In-context Learning) ，根据提示中包含的示例数量，可分为三种模式：
 
 随着2019年 [Language Models are Unsupervised Multitask Learners ](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) GPT-2 和 [Language Models are Few-Shot Learners](https://arxiv.org/abs/2005.14165) GPT-3 论文发表，研究人员发现：当模型规模和训练数据量达到足够大时，语言模型会表现出**涌现**能力(Emergent Abilities) ——能够在没有任何参数更新的情况下执行全新任务。
+
+![Hands-On Large Language Models Figure 6-4 Figure 6-11. An example of a complex prompt with many components.](./README.assets/an_example_of_a_complex_prompt_with_many_components.png)
+
+
 
 这种能力通过**提示工程**(Prompting) 来激活，即通过精心设计的文本指令引导模型执行特定任务。这种新范式被称为**上下文学习**(In-context Learning) ，根据提示中包含的示例数量，可分为三种模式：
 
