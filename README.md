@@ -3,7 +3,7 @@
 
 PicoGPT 是一个使用 NumPy 的 GPT-2 的极简实现，可执行代码仅 60 行，前向传播部分代码有 40 行代码 。
 
-本项目从  [jaymody/picoGPT](https://github.com/jaymody/picoGPT) 分叉而来，文章内容翻译和整理自  [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)。
+本项目从  [jaymody/picoGPT](https://github.com/jaymody/picoGPT) 分叉而来，文章大体内容提纲翻译和整理自  [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)。
 
 ## 依赖项
 
@@ -41,12 +41,18 @@ python gpt2.py "Alan Turing theorized that computers would one day become"
 - **预训练(Pre-trained)**：GPT 基于来自于书本、互联网等的海量文本进行训练；
 - **Transformer**：GPT是一个只用“解码器”(decoder-only)的 Transformer 神经网络结构。
 
-> Transformer 原本有“编码器”和“解码器”两部分，编码器负责理解输入，解码器负责生成输出。GPT 只保留了解码器部分，所以叫“decoder-only”。
+Transformer 最早在 2017 年发表的著名论文 [Attention Is All You Need](https://huggingface.co/papers/1706.03762) 中得到探讨。它完全基于注意力机制，在 Transformer 中，编码和解码组件堆叠在一起。编码器负责理解输入，解码器负责生成输出。GPT 只保留了解码器部分，所以叫“decoder-only”。
+
+| ![Hands-On Large Language Models Figure 1-16. The Transformer is a combination of stacked encoder and decoder blocks.](./README.assets/the_transformer.png) | ![![Hands-On Large Language Models Figure 1-1. A peek into the history of Language AI.](./README.assets/a_peek_into_the_history_of_language_ai.png)](./README.assets/the_architecture_of_a_gpt_1.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 像 OpenAI 的 GPT-3 这样的大型语言模型 (LLM, Large Language Models)的的底层都是 GPT。它们的特殊之处在于：经过大量数据的训练、规模非常大，如：
 
 1. [OpenAI GPT-3](https://huggingface.co/papers/2005.14165)：参数量约 1750 亿(175B)，训练数据约 3000 亿个 token，数据量 45TB 左右；
 2. [Google LaMDA](https://huggingface.co/papers/2201.08239)：LaMDA 1 代约 1370 亿(137B)，在预训练阶段收集并创建了一个具有 1.56T 单词的数据集。
+
+| ![image-20250525214216435](./README.assets/gpt_models_quickly_grew_in_size_with_each_iteration.png) | ![Hands-On Large Language Models Figure 1-28. A comprehensive view into the Year of Generative AI.](./README.assets/the_year_of_generative_ai.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 ## 输入和输入
 
