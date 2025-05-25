@@ -189,9 +189,13 @@ np.random.choice(np.arange(vocab_size), p=output[-1]) # pants
 
 结合 [top-k](https://docs.cohere.ai/docs/controlling-generation-with-top-k-top-p#2-pick-from-amongst-the-top-tokens-top-k)、[top-p](https://docs.cohere.ai/docs/controlling-generation-with-top-k-top-p#3-pick-from-amongst-the-top-tokens-whose-probabilities-add-up-to-15-top-p) 和 [temperature](https://docs.cohere.ai/docs/temperature) 等采样策略，可以显著提升生成文本的质量和多样性。这些技术还引入了一些**超参数**(Hyperparameter)，这些参数需要在训练前由开发者手动设定，而非通过模型学习获得。通过调整这些超参数，我们可以控制模型的生成行为，实现从保守到创造性的不同生成风格。
 
-> 1. top-k ：在每一步生成中，仅从概率最高的k个词汇中采样，有效平衡了确定性和多样性，防止模型总是选择最高概率的词。
-> 2. top-p ：动态选择累积概率达到阈值 p 的最小词汇集合进行采样，相比 top-k 更灵活，能根据概率分布的形状自适应调整候选集大小。
-> 3. temperature ：通过缩放logits(logits/temperature)调整概率分布的锐度，较低的温度(如 0.7)使分布更集中，生成更可预测；较高的温度(如 1.3)使分布更平坦，生成更多样化但可能不太连贯。
+> 1. Top-k ：在每一步生成中，仅从概率最高的k个词汇中采样，有效平衡了确定性和多样性，防止模型总是选择最高概率的词。
+> 2. Top-p ：动态选择累积概率达到阈值 p 的最小词汇集合进行采样，相比 top-k 更灵活，能根据概率分布的形状自适应调整候选集大小。
+> 3. Temperature ：通过缩放logits(logits/temperature)调整概率分布的锐度，较低的温度(如 0.7)使分布更集中，生成更可预测；较高的温度(如 1.3)使分布更平坦，生成更多样化但可能不太连贯。
+>
+> Temperature 示例：“I am driving a…”
+>
+> ![Hands-On Large Language Models Figure 6-4. A higher temperature increases the likelihood that less probable tokens are generated and vice versa.](./README.assets/temperature.png)
 
 ## 训练(Training)
 
