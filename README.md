@@ -51,12 +51,14 @@ Transformer 最早在 2017 年发表的著名论文 [Attention Is All You Need](
 1. [OpenAI GPT-3](https://huggingface.co/papers/2005.14165)：参数量约 1750 亿(175B)，训练数据约 3000 亿个 token，数据量 45TB 左右；
 2. [Google LaMDA](https://huggingface.co/papers/2201.08239)：LaMDA 1 代约 1370 亿(137B)，在预训练阶段收集并创建了一个具有 1.56T 单词的数据集。
 
-| ![image-20250525214216435](./README.assets/gpt_models_quickly_grew_in_size_with_each_iteration.png) | ![Hands-On Large Language Models Figure 1-28. A comprehensive view into the Year of Generative AI.](./README.assets/the_year_of_generative_ai.png) |
+| ![Hands-On Large Language Models Figure 1-25. GPT models quickly grew in size with each iteration.](./README.assets/gpt_models_quickly_grew_in_size_with_each_iteration.png) | ![Hands-On Large Language Models Figure 1-28. A comprehensive view into the Year of Generative AI.](./README.assets/the_year_of_generative_ai.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 ## 输入和输入
 
-GPT 的函数签名类似这样：
+LLM 接收 Prompt 并响应，GPT 的函数签名类似这样：
+
+![Hands-On Large Language Models Figure 2-2. High-level view of a language model and its input prompt](./README.assets/high_level_view_of_a_language_model_and_its_input_prompt.png)
 
 ```python
 def gpt(inputs: list[int]) -> list[list[float]]:
@@ -71,6 +73,8 @@ def gpt(inputs: list[int]) -> list[list[float]]:
 ```
 
 输入的文本被表示成一串整数序列，每个整数都与文本对应：
+
+![Hands-On Large Language Models Figure 2-4. A tokenizer processes the input prompt and prepares the actual input into the language model: a list of token IDs. The specific token IDs in the figure are just demonstrative.](./README.assets/a_tokenizer_processes_the_input_prompt.png)
 
 ```python
 # 整数表示文本中的 token ID，例如：
@@ -109,6 +113,9 @@ text = tokenizer.decode(ids) # text = "not all heroes wear"
 
 GPT 输出是一个二维数组，其中 `output[i][j]` 表示模型的预测概率，这个概率代表了词汇表中位于 `vocab[j]` 的 token 是下一个 token `inputs[i+1]` 的概率，如：
 
+| ![Hands-On Large Language Models  Figure 3-7. The tokens with the highest probability after the model’s forward pass. Our decoding strategy decides which of the tokens to output by sampling based on the probabilities.](./README.assets/the_tokens_with_the_highest_probability.png) | ![Hands-On Large Language Models Figure 2-5. Tokenizers are also used to process the output of the model by converting the output token ID into the word or token associated with that ID](./README.assets/tokenizers_are_also_used_to_process_the_output_of_the_model.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+
 ```python
 vocab = ["all", "not", "heroes", "the", "wear", ".", "capes"]
 inputs = [1, 0, 2, 4] # "not" "all" "heroes" "wear"
@@ -146,6 +153,8 @@ next_token = vocab[next_token_id]     # next_token = "capes"
 ### 自回归(Autoregressive)
 
 我们可以迭代地从模型中获取下一个 token 来生成完整的句子。在每次迭代中，我们将预测的 token 添加回输入：
+
+![Hands-On Large Language Models Figure 1-27. The context length is the maximum context an LLM can handle.](./README.assets/the_context_length_is_the_maximum_context_an_llm_can_handle.png)
 
 ```python
 def generate(inputs, n_tokens_to_generate):
