@@ -1,9 +1,12 @@
 # PicoGPT / 60 行 NumPy 实现 GPT-2
 # 项目
 
-PicoGPT 是一个使用 NumPy 的 GPT-2 的极简实现，可执行代码仅 60 行，前向传播部分代码有 40 行代码 。
+本项目从  [jaymody/picoGPT](https://github.com/jaymody/picoGPT) 分叉而来，文章主体内容提纲翻译和整理自  [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)。此外，本文引用了来自 [Jay Alammar](https://jalammar.github.io/) 的 [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/) 等书籍、博客的部分内容。
 
-本项目从  [jaymody/picoGPT](https://github.com/jaymody/picoGPT) 分叉而来，文章大体内容提纲翻译和整理自  [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)。
+PicoGPT 是一个使用 NumPy 的 GPT-2 的极简实现，可执行代码仅 60 行，前向传播部分代码有 40 行。结合 OpenAI 发布的经过训练的 GPT-2 模型权重，生成一些文本：
+
+1. 本文假定读者熟悉 Python，Numpy，还有一些训练神经网络的基本经验。
+2. 此实现是以教育为目的，它故意缺少一些功能，尽可能简单的同时保持整体的完整性。
 
 ## 依赖项
 
@@ -25,13 +28,6 @@ python gpt2.py "Alan Turing theorized that computers would one day become"
 > 
 > The computer is a machine that can perform complex calculations, and it can perform these calculations in a way that is very similar to the human brain.
 > ```
-
-# 前言
-
-在本文中，我们将用 60 行代码实现一个 GPT，结合 OpenAI 发布的经过训练的 GPT-2 模型权重，生成一些文本。
-
-- 本文假定读者熟悉 Python，Numpy，还有一些训练神经网络的基本经验。
-- 此实现是以教育为目的，它故意缺少许多功能，以尽可能简单的同时保持完整性。
 
 # GPT 是什么?
 
@@ -193,7 +189,7 @@ np.random.choice(np.arange(vocab_size), p=output[-1]) # pants
 > 2. Top-p ：动态选择累积概率达到阈值 p 的最小词汇集合进行采样，相比 top-k 更灵活，能根据概率分布的形状自适应调整候选集大小。
 > 3. Temperature ：通过缩放 logits(logits/temperature) 调整概率分布的锐度，较低的温度(如 0.7)使分布更集中，生成更可预测；较高的温度(如 1.3)使分布更平坦，生成更多样化但可能不太连贯。
 >
-> Temperature 示例：“I am driving a…”
+> “I am driving a…” Temperature 示例：
 >
 > ![Hands-On Large Language Models Figure 6-4. A higher temperature increases the likelihood that less probable tokens are generated and vice versa.](./README.assets/temperature.png)
 
@@ -304,7 +300,7 @@ def train(texts: list[list[str]], params) -> dict:
 
 > ![Language Models are Few-Shot Learners Figure 2.1: Zero-shot, one-shot and few-shot, contrasted with traditional fine-tuning](./README.assets/zero_shot_one_shot_and_few_shot_contrasted_with_traditional_fine_tuning.png)
 
-这种基于提示的文本生成在技术上被称为**条件生成**(Conditional Generation) ——模型的输出受到输入提示(条件)的约束和引导。
+这种基于提示的文本生成在技术上被称为**条件生成**(Conditional Generation) ——模型的输出受到输入 Prompt(条件)的约束和引导。
 
 值得注意的是，GPT 模型的应用远超传统的自然语言处理任务范畴。通过不同的提示设计，同一个模型可以：
 
@@ -315,6 +311,8 @@ def train(texts: list[list[str]], params) -> dict:
 4. 处理多模态任务(如在 GPT-4)。
 
 **提示工程**(Prompt Engineering)已成为一门重要技术，通过精心设计提示可以显著提升模型性能，但同时也需认识到模型在事实准确性、偏见、幻觉等方面的固有局限。
+
+以下是一个包含多个组件的复杂提示示例：
 
 ![Hands-On Large Language Models Figure 6-4 Figure 6-11. An example of a complex prompt with many components.](./README.assets/an_example_of_a_complex_prompt_with_many_components.png)
 
@@ -339,22 +337,42 @@ pip install -r requirements.txt
 | **`gpt2.py`**      | 完整实现的 GPT-2 模型代码，包含详细注释，可直接运行          |
 | **`gpt2_pico.py`** | 与 `gpt2.py` 功能相同的精简版本，移除了注释以突显核心代码    |
 
-首先
+首先将 `gpt2.py` 替换为以下内容：
+
+> 此部分内容关注方法链路即可，可暂时忽略其中的概念，这部分内容将于后文释意。
 
 ```python
 import numpy as np
 
-def gpt2(inputs, wte, wpe, blocks, ln_f, n_head):
-    # GPT-2 模型的前向传播函数
-    pass # 参数于后文释意、方法待实现
+def main(prompt: str, 
+         n_tokens_to_generate: int = 40, 
+         model_size: str = "124M", 
+         models_dir: str = "models"):
+    from utils import load_encoder_hparams_and_params
+    # 1. 从 openai gpt-2 文件中加载编码器、超参数和参数，这将下载必要的文件到 models/124M 中
+    encoder, hparams, params = load_encoder_hparams_and_params(model_size, models_dir)
+    
+    # 2. 使用编码器对输入字符串进行编码
+    input_ids = encoder.encode(prompt)
 
+    # 3. 确保不超过模型的最大序列长度
+    assert len(input_ids) + n_tokens_to_generate < hparams["n_ctx"]
+
+    # 4. 生成输出的 token ID
+    output_ids = generate(input_ids, params, hparams["n_head"], n_tokens_to_generate)
+
+    # 5. 将生成的 token ID 序列通过解码器映射回可读文本
+    output_text = encoder.decode(output_ids)
+		
+    # 6. 返回结果
+    return output_text
+
+# 使用自回归方式生成文本
 def generate(inputs, params, n_head, n_tokens_to_generate):
-  	# 使用自回归方式生成文本
     from tqdm import tqdm
-    # 自回归解码循环
     for _ in tqdm(range(n_tokens_to_generate), "generating"):
         # 模型前向传播
-        logits = gpt2(inputs, **params, n_head=n_head)
+        logits = gpt2(inputs, **params, n_head=n_head) 
         # 贪婪采样
         next_id = np.argmax(logits[-1])
         # 将预测结果添加到输入中
@@ -362,26 +380,10 @@ def generate(inputs, params, n_head, n_tokens_to_generate):
     # 只返回新生成的 token ID
     return inputs[len(inputs) - n_tokens_to_generate :] 
 
-def main(prompt: str, n_tokens_to_generate: int = 40, model_size: str = "124M", models_dir: str = "models"):
-    from utils import load_encoder_hparams_and_params
-    # 从 openai gpt-2 文件中加载编码器、超参数和参数
-    # 这将下载必要的文件到 models/124M 中
-    encoder, hparams, params = load_encoder_hparams_and_params(model_size, models_dir)
-
-    # 使用 BPE 分词器对输入字符串进行编码
-    input_ids = encoder.encode(prompt)
-
-    # 确保不超过模型的最大序列长度
-    assert len(input_ids) + n_tokens_to_generate < hparams["n_ctx"]
-
-    # 生成输出 token
-    output_ids = generate(input_ids, params, hparams["n_head"], n_tokens_to_generate)
-
-    # 将 token 解码回字符串
-    output_text = encoder.decode(output_ids)
-
-    return output_text
-
+# GPT-2 模型的前向传播函数
+def gpt2(inputs, wte, wpe, blocks, ln_f, n_head):
+    pass
+  
 if __name__ == "__main__":
     import fire
     fire.Fire(main)
@@ -389,31 +391,17 @@ if __name__ == "__main__":
 
 上述代码包含四个部分：
 
-1. `gpt2` 函数：我们将要实现的 GPT。函数签名中除了 `inputs`，还有其它的参数：
-
-   1. 模型参数：`wte`(词嵌入矩阵)、`wpe`(位置嵌入矩阵)、`blocks`(Transformer 块序列)、`ln_f`(最终层归一化)；
-
-   2. 超参数：`n_head`(注意力头数量，控制并行自注意力计算)。
-
-2. `generate` 函数：实现自回归生成过程，为了简洁这里将使用贪婪解码；
-
-   1. [`tqdm`](https://github.com/tqdm/tqdm) 提供进度，以直观地看到解码过程。
-
-3. `main` 函数：协调整体工作流程：
-
-   1. 初始化模型环境：加载分词器(`encoder`)、模型权重(`params`)、超参数(`hparams`)；
-
-      > 在 NLP 领域，"encoder"术语通常指执行编码转换的组件。在本代码中，`encoder`对象实际实现了分词器(Tokenizer)功能，具体包含：`encode` 方法 (执行文本到 token ID 序列的转换)、`decoder` 属性 (维护 token ID 到原始文本的反向映射表)。
-
-   2. 输入处理：使用 BPE 算法将输入文本转换为模型可处理的 token ID 序列；
-
-   3. 文本生成：调用 `generate` 函数执行自回归推理，产生后续 token 序列；
-
-   4.  输出处理：将生成的token ID序列通过解码器映射回可读文本。
-
-4. 命令行接口：通过 [`fire.Fire(main)`](https://github.com/google/python-fire) 将 Python 脚本转换为命令行应用，支持格式：`python gpt2.py "prompt"`。
+1. `main` 函数：协调整体工作流程：初始化模型环境、输入处理、文本生成、输出处理；
+2. `generate` 函数：实现自回归生成过程，为了简洁这里将使用贪婪解码，其中 [`tqdm`](https://github.com/tqdm/tqdm) 提供进度展示，以直观地看到解码过程；
+3. `gpt2` 函数：将要实现的前向传播函数；
+4. 命令行接口：通过 [`fire.Fire(main)`](https://github.com/google/python-fire) 将 Python 脚本转换为命令行应用，以支持 `python gpt2.py "prompt"` 调用。
 
 ## 分词器、模型参数与超参数
+
+模型不会一次性生成全部输出响应；它实际上是一次生成一个 token。同样，token 不仅是模型的输出，它们也是模型输入的方式。在将 Prompt 呈现给语言模型之前，它首先必须通过分词器进行处理。我们可以在 OpenAI 上找到 [GPT-4o 分词器的示例](https://platform.openai.com/tokenizer)：
+
+| ![OpenAI Platform Tokenizer Text](./README.assets/gpt_4o_tokenizer_text.png) | ![OpenAI Platform Tokenizer Token IDs](./README.assets/gpt_4o_tokenizer_token_ids.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 `encoder` 是 GPT-2 使用的 BPE 分词器：
 
@@ -433,9 +421,15 @@ print(tokens)
 
 请注意，有时 token 是单词(如 `Not`)，有时是前面有一个空格的单词(如 `Ġall`，[`Ġ`表示空格](https://github.com/karpathy/minGPT/blob/37baab71b9abea1b76ab957409a1cc2fbfba8a26/mingpt/bpe.py#L22-L33))，有时是部分单词(如 capes 分为  `Ġcap` 和  `es`)，有时是标点符号(如 `.`)。
 
- **词汇表**(Vocabulary)和**字节对组合**(Byte-pair merges)是现代自然语言处理中**分词器**(Tokenizer)的核心组成部分。词汇表就像是一本"字典"，它包含了模型能够理解的所有"单词"(tokens)及其对应的数字 ID。在 GPT 模型中，这些"单词"可能是真实的单词、单个字符、或者是常见的词组片段。
+**词汇表**(Vocabulary)和**字节对组合**(Byte-pair merges)是现代自然语言处理中**分词器**(Tokenizer)的核心组成部分。词汇表就像是一本"字典"，它包含了模型能够理解的所有"单词"(tokens)及其对应的数字 ID。在 GPT 模型中，这些"单词"可能是真实的单词、单个字符、或者是常见的词组片段。
 
-**字节对编码(BPE，Byte-Pair Encoding)** 是是一种数据驱动的分词算法。它首先将文本看作单个字符，然后逐步合并最常一起出现的字符对，形成新的 token，这个过程不断重复，直到达到预设的词汇量。假设"机器学习"这个词在语料库中经常出现 BPE 算法可能会将其作为一个完整的 token，而不是分解为"机"、"器"、"学"、"习"四个 token 这样可以更高效地表示常见词组。
+[字节对编码](https://huggingface.co/learn/llm-course/chapter6/5)(BPE，Byte-Pair Encoding) 是是一种数据驱动的分词算法。最初是作为一种文本压缩算法开发的，后来被 OpenAI 在预训练 GPT 模型时用于标记化。许多 Transformer 模型都使用了它，包括 GPT、GPT-2、RoBERTa、BART 和 DeBERTa。
+
+它首先将文本看作单个字符，然后逐步合并最常一起出现的字符对，形成新的 token，这个过程不断重复，直到达到预设的词汇量。假设"机器学习"这个词在语料库中经常出现 BPE 算法可能会将其作为一个完整的 token，而不是分解为"机"、"器"、"学"、"习"四个 token 这样可以更高效地表示常见词组。可参考视频 [Byte Pair Encoding Tokenization](https://youtu.be/HEikzVL-lZU) 了解该流程：
+
+| ![Byte Pair Encoding Tokenization 1](./README.assets/byte_pair_encoding_tokenization_1.png) | ![Byte Pair Encoding Tokenization 2](./README.assets/byte_pair_encoding_tokenization_2.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| ![Byte Pair Encoding Tokenization 3](./README.assets/byte_pair_encoding_tokenization_3.png) | ![Byte Pair Encoding Tokenization 4](./README.assets/byte_pair_encoding_tokenization_4.png) |
 
 BPE 的一个优点是它可以编码任意字符串，若遇到词汇表中不存在的内容，它会将其分解为它能理解的子字符串：
 
