@@ -396,7 +396,44 @@ if __name__ == "__main__":
 3. `gpt2` 函数：将要实现的前向传播函数；
 4. 命令行接口：通过 [`fire.Fire(main)`](https://github.com/google/python-fire) 将 Python 脚本转换为命令行应用，以支持 `python gpt2.py "prompt"` 调用。
 
+## GPT 架构概览
+
+GPT 的架构是基于 [Transformer](https://huggingface.co/papers/1706.03762) 的，但与原始 Transformer 不同，GPT仅使用解码器部分，并移除 编码器-解码器 间的交叉注意力机制。这种设计使模型专注于自回归语言建模任务：
+
+| ![Attention Is All You Need Figure 1: The Transformer - model architecture](./README.assets/the_transformer_model_architecture_1.png) | ![Attention Is All You Need Figure 1: The Transformer - model architecture](./README.assets/the_transformer_model_architecture_2.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+
+**左图：这张图展示了原始 Transformer 模型的完整架构，包含了编码器和解码器两部分：**
+
+1. 左侧是编码器(Encoder)部分，用于处理输入序列；
+2. 右侧是解码器(Decoder)部分，用于生成输出序列；
+3. 图中的"N×"表示这些模块重复N次，形成多层结构；
+4. 底部是输入嵌入(Input Embedding)和位置编码(Positional Encoding)的组合；
+5. 中间有多头注意力(Multi-Head Attention)机制和前馈神经网络(Feed Forward)层；
+6. 每个主要组件后都有 Add & Norm 层，实现残差连接和层归一化；
+7. 解码器部分有额外的"Masked Multi-Head Attention"层，确保自回归生成过程中只能看到已生成的 tokens。
+
+**右图：展示了 GPT 模型的简化架构，与原始 Transformer 相比有以下区别：**
+
+1. GPT只使用了 Transformer 的解码器部分 ，移除了编码器-解码器间的交叉注意力机制；
+
+2. 底部是文本和位置的组合嵌入(Text + Position Embedding)；
+
+3. 中间是N个重复的 Transformer 块，每个块包含：
+   1. 多头自注意力机制(Multi-Head Casual Self Attention)，"Casual"表示它是单向的，只能看到当前及之前的 token
+   2. 层归一化(Layer Norm)；
+   3. 残差连接(+符号表示)；
+   4. 前馈神经网络(Feed Forward)；
+
+4. 顶部是输出处理部分：
+   1. 层归一化；
+   2. 线性变换(Linear)；
+   3. Softmax层
+   4. 将输出转换为下一个 token 的概率分布。
+
 ## 分词器、模型参数与超参数
+
+### 分词器(Tokenizer)
 
 模型不会一次性生成全部输出响应；它实际上是一次生成一个 token。同样，token 不仅是模型的输出，它们也是模型输入的方式。在将 Prompt 呈现给语言模型之前，它首先必须通过分词器进行处理。我们可以在 OpenAI 上找到 [GPT-4o 分词器的示例](https://platform.openai.com/tokenizer)：
 
@@ -442,11 +479,13 @@ print([encoder.decoder[i] for i in encoder.encode("zjqfl")])
 >
 > 可以查看 `models/124M/encoder.json` (词汇表)和 `models/124M/vocab.bpe` (字节对组合)。
 
-**超参数**(Hyperparameters)是在模型设计和训练前确定的关键配置，它们定义了模型的架构特性和计算能力。GPT-2的核心超参数包含在`hparams`字典中：
+### 超参数(Hyperparameters)
+
+**超参数**(Hyperparameters)是在模型设计和训练前确定的关键配置，它们定义了模型的架构特性和计算能力。GPT-2 的核心超参数包含在 `hparams` 字典中：
 
 ```python
 print(hparams)
-# 输出: {
+# {
 #    "n_vocab": 50257,
 #    "n_ctx"  : 1024,
 #    "n_embd" : 768,
@@ -455,15 +494,17 @@ print(hparams)
 # }
 ```
 
-| 超参数    |              全称              |   值   | 描述             | 影响                                                         |
-| --------- | :----------------------------: | :----: | ---------------- | ------------------------------------------------------------ |
-| `n_vocab` |      Number of Vocabulary      | 50,257 | 词表大小         | 决定模型可识别的token数量，影响模型的词汇覆盖范围和输入/输出空间大小。较大的词表能处理更多独特的词汇，但也增加了嵌入层的参数量 |
-| `n_ctx`   |    Number of Context Tokens    | 1,024  | 上下文窗口       | 限制模型能处理的最大序列长度，直接影响模型捕获长距离依赖关系的能力。较大的上下文窗口使模型能处理更长的文本，但也增加了计算复杂度(注意力机制的计算量与序列长度的平方成正比) |
-| `n_embd`  | Number of Embedding Dimensions |  768   | 嵌入维度         | 控制模型表示空间的维度(宽度)，影响特征编码丰富度；更高的维度使模型能够更好地区分不同 token 之间的细微差别；维度越大，向量能够编码的信息越丰富 |
-| `n_head`  |   Number of Attention Heads    |   12   | 注意力头数       | 决定并行自注意力计算单元数量，增强多角度特征提取能力；每个头都会独立地计算注意力权重、关注输入序列的不同方面、捕捉不同类型的依赖关系；可以理解为模型观察输入序列的不同"视角"或"焦点" |
-| `n_layer` |        Number of Layers        |   12   | Transformer 层数 | 控制模型深度，影响特征抽象和组合能力；多的层使模型能够学习更抽象、更复杂的特征，低层通常捕获基本语法和简单语义、高层能够理解更复杂的语义关系和上下文；层数越多，信息可以传递的路径就越多样化 |
+| 超参数    |              全称              |   值   | 描述             | 影响                                             |
+| --------- | :----------------------------: | :----: | ---------------- | ------------------------------------------------ |
+| `n_vocab` |      Number of Vocabulary      | 50,257 | 词表大小         | 决定模型的语言覆盖范围，影响嵌入层和输出层参数量 |
+| `n_ctx`   |    Number of Context Tokens    | 1,024  | 最大序列长度     | 限制模型的记忆窗口，影响注意力计算复杂度 O(n²)   |
+| `n_embd`  | Number of Embedding Dimensions |  768   | 嵌入维度         | 控制模型表达能力的"宽度"，影响所有线性层的参数量 |
+| `n_head`  |   Number of Attention Heads    |   12   | 注意力头数       | 提供多角度特征提取，并行计算单元数量             |
+| `n_layer` |        Number of Layers        |   12   | Transformer 层数 | 控制特征抽象层次，决定前向传播的计算步数         |
 
 >  此外， 我们会使用  `n_seq` (Number of sequence)表示输入序列的长度，即 `n_seq = len(inputs)`。这是一个动态值，取决于输入数据，最大不超过 `n_ctx`。
+
+### 参数(Parameters)
 
 参数 `params` 是一个嵌套的  JSON 字典，用于保存模型的训练权重。JSON 的叶节点是 NumPy 数组。如果打印  `params`，并将数组替换为其形状，我们将得到：
 
@@ -507,35 +548,56 @@ print(shape_tree(params))
 {
     "wpe": [  n_ctx, n_embd], # 位置嵌入: [上下文长度, 嵌入维度]
     "wte": [n_vocab, n_embd], # 词嵌入: [词汇表大小, 嵌入维度]
-    "ln_f": {"b": [n_embd], "g": [n_embd]}, # 最终层归一化: 偏置和增益
-    "blocks": [ # 每个Transformer块的参数
+    "ln_f": {"b": [n_embd], "g": [n_embd]}, # 最终层归一化
+    "blocks": [ # 每个 Transformer 块的参数
         {
             "attn": { # 自注意力机制
-                "c_attn": {"b": [3*n_embd], "w": [n_embd, 3*n_embd]}, # QKV 合并投影
-                "c_proj": {"b":   [n_embd], "w":   [n_embd, n_embd]}, # 输出投影
+                "c_attn": {"b": [3*n_embd], "w": [n_embd, 3*n_embd]},
+                "c_proj": {"b":   [n_embd], "w":   [n_embd, n_embd]},
             },
             "ln_1": {"b": [n_embd], "g": [n_embd]}, # 第一层归一化
             "ln_2": {"b": [n_embd], "g": [n_embd]}, # 第二层归一化
-            "mlp": { # 前馈神经网络
-                "c_fc"  : {"b": [4*n_embd], "w": [n_embd, 4*n_embd]}, # 扩展维度
-                "c_proj": {"b":   [n_embd], "w": [4*n_embd, n_embd]}, # 压缩回原维度
+            "mlp": { # 前馈网络
+                "c_fc"  : {"b": [4*n_embd], "w": [n_embd, 4*n_embd]},
+                "c_proj": {"b":   [n_embd], "w": [4*n_embd, n_embd]},
             },
         },
-        # ... 重复n_layer次
+        # ... 重复 n_layer 次
     ]
 }
 ```
 
-| 参数                                    | 全称                         | 形状                            | 计算关系                                   | 描述                                                         |
-| --------------------------------------- | ---------------------------- | ------------------------------- | ------------------------------------------ | ------------------------------------------------------------ |
-| `wpe`(词嵌入)                           | Word Position Embeddings     | [1024, 768]                     | [n_ctx, n_embd]                            | 位置嵌入权重，为序列中的每个位置提供位置信息。将离散的 token ID 映射为连续的向量表示，是模型理解词义的基础 |
-| `wte`(位置嵌入)                         | Word Token Embeddings        | [50257, 768]                    | [n_vocab, n_embd]                          | 词嵌入权重，将输入 token ID 转换为向量表示。为序列中的每个位置提供唯一的位置编码，使模型能够区分不同位置的相同 token |
-| `ln_f`(层归一化参数)                    | Layer Normalization Final    | {"b": [768], "g": [768]}        | {"b": [n_embd], "g": [n_embd]}             | 最终层归一化参数，对最终输出进行归一化处理                   |
-| `blocks[].attn.c_attn` (注意力机制参数) | Concatenated Attention       | {"b": [2304], "w": [768, 2304]} | {"b": [3*n_embd], "w": [n_embd, 3*n_embd]} | 合并的注意力投影，同时计算查询(Q)、键(K)和值(V)的线性变换。一个关键优化，将 Q、K、V 三个投影合并为一个大矩阵，减少计算开销 |
-| `blocks[].attn.c_proj`(注意力机制参数)  | Concatenated Projection      | {"b": [768], "w": [768, 768]}   | {"b": [n_embd], "w": [n_embd, n_embd]}     | 注意力输出投影，将多头注意力的输出投影回原始维度。将多头注意力的输出重新投影到模型维度，整合不同注意力头的信息 |
-| `blocks[].ln_1/ln_2`(层归一化参数)      | Layer Normalization 1/2      | {"b": [768], "g": [768]}        | {"b": [n_embd], "g": [n_embd]}             | 层归一化参数，分别应用于自注意力子层和前馈神经网络子层之前。通过归一化激活值，稳定训练过程，减轻梯度消失/爆炸问题 |
-| `blocks[].mlp.c_fc`(多层感知机参数)     | Concatenated Fully Connected | {"b": [3072], "w": [768, 3072]} | {"b": [4*n_embd], "w": [n_embd, 4*n_embd]} | MLP 前向投影参数，扩展维度(通常扩大4倍)，增强模型的表达能力  |
-| `blocks[].mlp.c_proj``(多层感知机参数)  | Concatenated Projection      | {"b": [768], "w": [3072, 768]}  | {"b": [n_embd], "w": [4*n_embd, n_embd]}   | MLP 后向投影参数，将扩展的维度压缩回原始维度，提取关键特征   |
+GPT-2 的参数可以按功能分为三大类：
+
+嵌入层参数、Transformer 块参数(自注意力机制、前馈网络、层归一化)、输出层参数。
+
+| 参数 | 全称 | 形状 | 参数量 | 功能 |
+|------|------|------|--------|------|
+| `wte` | Word Token Embeddings | [50257, 768] | 38.6M | 将 token ID 映射为语义向量 |
+| `wpe` | Word Position Embeddings | [1024, 768] | 0.8M | 为每个位置提供位置编码 |
+
+| 参数 | 形状 | 参数量/层 | 功能 |
+|------|------|-----------|------|
+| `c_attn.w` | [768, 2304] | 1.77M | QKV 联合投影矩阵 |
+| `c_attn.b` | [2304] | 2.3K | QKV 投影偏置 |
+| `c_proj.w` | [768, 768] | 0.59M | 注意力输出投影 |
+| `c_proj.b` | [768] | 768 | 输出投影偏置 |
+
+| 参数 | 形状 | 参数量/层 | 功能 |
+|------|------|-----------|------|
+| `c_fc.w` | [768, 3072] | 2.36M | 扩展投影(4×放大) |
+| `c_fc.b` | [3072] | 3.1K | 扩展投影偏置 |
+| `c_proj.w` | [3072, 768] | 2.36M | 压缩投影 |
+| `c_proj.b` | [768] | 768 | 压缩投影偏置 |
+
+| 参数 | 形状 | 参数量/层 | 功能 |
+|------|------|-----------|------|
+| `ln_1.g/b` | [768] × 2 | 1.5K | 注意力前归一化 |
+| `ln_2.g/b` | [768] × 2 | 1.5K | MLP 前归一化 |
+
+| 参数 | 形状 | 参数量 | 功能 |
+|------|------|--------|------|
+| `ln_f.g/b` | [768] × 2 | 1.5K | 最终层归一化 |
 
 这些是从 OpenAI TensorFlow 检查点加载的：
 
@@ -576,47 +638,60 @@ for name, _ in tf.train.list_variables(tf_ckpt_path):
 
 ## 基础的神经网络层
 
-在深入了解 GPT 架构本身之前，我们需要先实现一些基础的神经网络层，这些并不是 GPT 特有的。
+在深入了解 GPT 架构本身之前，我们需要先实现一些基础的神经网络层。
 
 ### 高斯误差线性单元(GELU)
 
-[**GELU**(Gaussian Error Linear Units)](https://huggingface.co/papers/1606.08415) 是 GPT-2 的非线性激活函数，在 Transformer 架构中表现优于 ReLU 和其他激活函数。神经网络的基础运算是线性变换(矩阵乘法与偏置加法)，如果没有非线性激活函数，无论神经网络有多少层，整个网络本质上仍然只是一个线性模型。非线性激活函数打破了这种限制，使网络能够学习复杂的非线性关系。
+由 Dan Hendrycks 和 Kevin Gimpel 在 2016 年提出 的 [**GELU**(Gaussian Error Linear Units)](https://huggingface.co/papers/1606.08415) 是 GPT-2 的非线性激活函数，在 Transformer 架构中表现优于 ReLU 和其他激活函数。
 
 ![Gaussian Error Linear Units Figure 1: The GELU (µ = 0, σ = 1), ReLU, and ELU (α = 1)](./README.assets/gaussian_error_linear_units.png)
+
+> ReLU 激活函数对于任何负数都会在 0 处强制截止，否则会产生线性结果。[激活函数随时间推移的使用情况](https://paperswithcode.com/method/gelu)如下：
+>
+> ![Usage Over Time](./README.assets/usage_over_time.png)
+
+神经网络的基础运算是线性变换(矩阵乘法与偏置加法)。如果没有非线性激活函数，无论神经网络有多少层，整个网络本质上仍然只是一个线性模型。非线性激活函数打破了这种限制，使网络能够学习复杂的非线性关系。
 
 GELU 激活函数 `GELU(x) = x * Φ(x)` 可以被理解为：将输入值 x 乘以该输入被保留的概率，体现了一种概率性的特征选择机制。这个概率由标准正态分布的累积分布函数(CDF)给出。由于标准正态分布的 CDF 计算复杂，代码使用了一个常用的近似公式：
 
 ```python
 def gelu(x):
+ 		# GELU 激活函数的近似实现
   	return 0.5 * x * (1 + np.tanh(np.sqrt(2 / np.pi) * (x + 0.044715 * x**3)))
 ```
 
 GELU 对输入进行逐元素操作：
 
 ```python
-gelu(np.array([[1, 2], [-2, 0.5]]))
+# GELU 对输入进行逐元素操作
+output = gelu(np.array([[1, 2], [-2, 0.5]]))
+print(output)
 # array([[ 0.84119,  1.9546],
 #        [ -0.0454, 0.34571]])
 ```
 
-> 在GPT-2模型中，GELU主要应用于前馈神经网络(Feed-Forward Network)层，作为 MLP 中的非线性变换组件。
+> 在 GPT-2 模型中，GELU主要应用于前馈网络(Feed-Forward Network)层，作为 MLP 中的非线性变换组件。
 
-### 软最大值函数(Softmax)
+### Softmax 函数(Softmax)
 
-Softmax 函数在神经网络和深度学习中扮演着非常重要的角色，Softmax 的核心作用是将一组实数值(通常称为 logits)转换为概率分布。它确保所有输出值在 0 到 1 之间，并且所有值的总和为 1。在 GPT-2 等语言模型中，Softmax 用于词汇表上的概率分布，帮助模型预测序列中的下一个词。下面是最经典的 Softmax 函数(其中 x_i 是输入向量的第 i 个元素，分母是所有元素指数的总和)：
+Softmax 函数在神经网络和深度学习中扮演着非常重要的角色，Softmax 的核心作用是将一组实数值(通常称为 logits)转换为概率分布。它确保所有输出值在 0 到 1 之间，并且所有值的总和为 1。
+
+![Softmax 函数](./README.assets/softmax.png)
+
+在 GPT-2 等语言模型中，Softmax 用于词汇表上的概率分布，帮助模型预测序列中的下一个词。下面是最经典的 Softmax 函数(其中 x_i 是输入向量的第 i 个元素，分母是所有元素指数的总和)：
 $$
 \text{softmax}(x_i) = \frac{e^{x_i}}{\sum_j e^{x_j}}
 $$
 
 ```python
 def softmax(x):
-    # 数值稳定化：减去每个样本的最大值，防止指数计算溢出
+    # 1. 数值稳定化：减去每个样本的最大值，防止指数计算溢出
     # 首先从输入 x 中减去每个样本的最大值(最大的输入值变为 0，其他值变为负数)，防止指数计算时出现数值溢出
     # 对调整后的值计算指数 `exp_x = np.exp(x - max_x)`，这将所有值转换为正数
     # axis=-1 表示沿着最后一个维度操作，对于 GPT-2 模型的输出 logits，最后一个维度的大小等于词汇表大小
     # keepdims=True 保持数组的维度结构，便于后续操作
     exp_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
-    # 归一化：确保所有概率值的总和为1
+    # 2. 归一化：确保所有概率值的总和为 1
     # 计算指数值的总和，将每个指数值除以总和，这确保输出的所有值在 0 到 1 之间，且总和为 1。
     return exp_x / np.sum(exp_x, axis=-1, keepdims=True)
 ```
@@ -630,21 +705,41 @@ x.sum(axis=-1) # 验证概率和为 1
 # array([1., 1.])
 ```
 
-> 在 GPT-2 模型中，Softmax 主要用于两个关键位置：(1)注意力权重的计算；(2)最终输出层生成 token 概率分布。
+> 在 GPT-2 模型中，Softmax 主要用于两个关键位置： 
+>
+> | 应用位置   | 作用           | 输入                   | 输出               |
+> | ---------- | -------------- | ---------------------- | ------------------ |
+> | 注意力机制 | 计算注意力权重 | Query-Key 相似度分数   | 注意力概率分布     |
+> | 输出层     | 生成词汇概率   | 最终隐藏状态的线性变换 | 词汇表上的概率分布 |
 
 ### 层归一化(Layer Normalization)
 
-[**层归一化**(Layer Normalization)](https://huggingface.co/papers/1607.06450) 是一种在深度神经网络中常用的技术，通常在神经网络的每一层应用，对每个样本的特征维度进行标准化。它的主要作用是加速网络训练过程、提高模型的稳定性、减轻内部协变量偏移(Internal covariate shift)问题、使网络对权重初始化不那么敏感等。
+[**层归一化**(Layer Normalization)](https://huggingface.co/papers/1607.06450) 层归一化是一种归一化技术，用于稳定深度神经网络的训练过程并提高性能。
+
+需要归一化的原因有：
+
+1. 内部协变量偏移：训练过程中，由于权重更新，各层激活值的分布会发生变化；
+2. 梯度流优化：归一化有助于缓解梯度消失/爆炸问题；
+3. 训练稳定性：保持激活值在合理范围内，加速收敛。
 
 层归一化将数据标准化为均值为 0、方差为 1 的分布，具体步骤如下：
 $$
 LayerNorm(x) = \gamma \cdot \frac{x - \mu}{\sqrt{\sigma^2}} + \beta
 $$
 
->  μ 和 σ² 分别是特征维度上的均值和方差，γ(缩放参数)和 β(偏移参数)是可学习的参数，ε 是防止除零的小常数。
+>  μ 和 σ² 分别是特征维度上的均值和方差，γ(缩放参数)和 β(偏移参数)是可学习的参数。
 
 ```python
 def layer_norm(x, g, b, eps: float = 1e-5):
+    # 层归一化实现
+    # 参数：
+    # x: 输入张量 [batch_size, hidden_size]
+    # gamma: 缩放参数 [hidden_size]
+    # beta: 偏移参数 [hidden_size]
+    # eps: 数值稳定性常数
+    # 返回：
+    # 归一化后的张量
+    # 
   	# 计算特征维度上的均值和方差
     mean = np.mean(x, axis=-1, keepdims=True)    # 对输入张量 x 在最后一个维度(通常是特征维度)上计算均值
     variance = np.var(x, axis=-1, keepdims=True) # 同样在最后一个维度上计算方差
@@ -653,7 +748,6 @@ def layer_norm(x, g, b, eps: float = 1e-5):
     																				     # eps 是一个小常数(默认为1e-5)，用于数值稳定性，防止除以零。
     # 应用可学习的缩放和偏移参数
     return g * x + b # 使用可学习的参数 g(gamma)和 b(beta)对标准化后的数据进行线性变换
-  									 # 这使网络能够学习恢复数据的表示能力
 ```
 
 ```python
@@ -670,20 +764,46 @@ x.mean(axis=-1)
 #array([-0., -0.])
 ```
 
-> 在 GPT-2 架构中，层归一化在两个关键位置应用：(1)多头注意力机制之前；(2)前馈神经网络之前，形成了"Pre-LayerNorm"结构，有助于深层网络的稳定训练。
+> 在 GPT-2 的 Transformer 架构中，层归一化采用 Pre-Norm 结构 ，这是一种将归一化操作前置的设计模式。
+>
+> 具体应用在两个关键位置：
+>
+> 1. 多头注意力机制之前：
+>
+>    ```python
+>    # Pre-Norm 结构在自注意力层的应用
+>    x_norm = layer_norm(x)                    # 先进行层归一化
+>    attention_output = multi_head_attention(x_norm)  # 再进行注意力计算
+>    x = x + attention_output                  # 残差连接
+>    ```
+>
+> 2. 前馈神经网络之前：
+>
+>    ```python
+>    # Pre-Norm 结构在前馈网络的应用
+>    x_norm = layer_norm(x)                    # 先进行层归一化
+>    ffn_output = feed_forward_network(x_norm) # 再进行前馈网络计算
+>    x = x + ffn_output                        # 残差连接
+>    ```
 
 ### 线性变换(Linear Transformation)
 
-线性变换是深度神经网络的核心构建模块，它通过可学习的权重矩阵将特征从一个向量空间映射到另一个向量空间。在Transformer架构中，线性变换(也称为全连接层或投影层)在多个关键位置发挥作用：
+线性变换是深度神经网络的基础构建模块，通过可学习的权重矩阵实现向量空间之间的映射。在 Transformer 架构中，线性变换承担着特征转换、维度调整和信息处理的关键作用。线性变换的数学表达式为：
+$$
+y = xW + b
+$$
+其中：
+1. x：输入张量(批次大小 × 输入维度)；
+2. W：权重矩阵(输入维度 × 输出维度)；
+3. b：偏置向量(输出维度)；
+4. y：输出张量(批次大小 × 输出维度)。
 
-- 特征映射 ：在不同维度的表示空间之间转换特征
-- 信息压缩与扩展 ：通过调整输出维度大小实现信息的压缩或扩展
-- 特征提取 ：与非线性激活函数结合，提取更复杂的特征表示
-线性变换的数学本质是仿射变换：$y = xW + b$，其中$W$是权重矩阵，$b$是偏置向量。
+线性变换的几何直观理解：
 
-
-
-在深度学习中，线性层通常与非线性激活函数结合使用，以增强模型的表达能力。这种维度变换是深度学习中的基础操作，使模型能够在不同维度的特征空间中进行计算和学习。线性变换是一种将向量从一个向量空间映射到另一个向量空间的操作。在深度学习中，这通常通过矩阵乘法加偏置来实现。
+1. 旋转：改变向量的方向；
+2. 缩放：改变向量的长度；
+3. 剪切：改变向量间的角度关系；
+4. 投影：将高维空间映射到低维空间。
 
 `linear` 函数实现了一个标准的线性变换，这个函数实现了一个标准的矩阵乘法加偏置的线性层，通常被称为**投影(Projection)**。这个名称来源于线性代数中的向量空间投影概念，因为它将向量从一个向量空间映射(或"投影")到另一个向量空间：
 
@@ -692,11 +812,11 @@ def linear(x, w, b):
   	# 执行线性变换(全连接层操作)
   	# [m, in], [in, out], [out] -> [m, out]
     # 参数：
-    # x 是输入张量，形状为 [batch_size, in_features](m个样本，每个样本有in个特征)
-    # w 是权重矩阵，形状为 [in_features, out_features](将in维输入映射到out维输出)
-    # b 是偏置向量，形状为 [out_features](为每个输出维度添加一个偏移)
-    # @ 是矩阵乘法运算符
-    # 返回:
+    # x: 输入张量，形状为 [batch_size, in_features](m个样本，每个样本有in个特征)
+    # w: 权重矩阵，形状为 [in_features, out_features](将in维输入映射到out维输出)
+    # b: 偏置向量，形状为 [out_features](为每个输出维度添加一个偏移)
+    # @: 矩阵乘法运算符
+    # 返回：
     # 形状为 [batch_size, out_features] 的输出张量(m个样本，每个样本有out个特征)
     return x @ w + b
 ```
@@ -714,65 +834,43 @@ x.shape # (64, 784)
 linear(x, w, b).shape # (64, 10)
 ```
 
-> 在GPT-2中，线性变换通常与层归一化、残差连接和非线性激活函数(如GELU)结合使用，形成完整的 Transformer 块结构。
+> 在 GPT-2 中，线性变换通常与层归一化、残差连接和非线性激活函数(如GELU)结合使用，形成完整的 Transformer 块结构：
+>
+> | 位置                | 作用                 | 输入维度  | 输出维度   |
+> | ------------------- | -------------------- | --------- | ---------- |
+> | Query/Key/Value投影 | 注意力机制的特征映射 | d_model   | d_k/d_v    |
+> | 注意力输出投影      | 多头注意力结果合并   | d_model   | d_model    |
+> | FFN 第一层          | 特征扩展             | d_model   | 4×d_model  |
+> | FFN 第二层          | 特征压缩             | 4×d_model | d_model    |
+> | 输出投影            | 词汇表映射           | d_model   | vocab_size |
 
-## GPT 架构
+## GPT 架构实现
 
-GPT 的架构是基于 [Transformer](https://huggingface.co/papers/1706.03762) 的，但与原始 Transformer 不同，GPT仅使用解码器部分，并移除了编码器-解码器间的交叉注意力机制。这种设计使模型专注于自回归语言建模任务：
-
-| ![Attention Is All You Need Figure 1: The Transformer - model architecture](./README.assets/the_transformer_model_architecture_1.png) | ![Attention Is All You Need Figure 1: The Transformer - model architecture](./README.assets/the_transformer_model_architecture_2.png) |
-| ------------------------------------------------------------ | ------------------------------------------------------------ |
-
->  左图：这张图展示了原始 Transformer 模型的完整架构，包含了编码器和解码器两部分：
->
-> 1. 左侧是编码器(Encoder)部分，用于处理输入序列；
-> 2. 右侧是解码器(Decoder)部分，用于生成输出序列；
-> 3. 图中的"N×"表示这些模块重复N次，形成多层结构；
-> 4. 底部是输入嵌入(Input Embedding)和位置编码(Positional Encoding)的组合；
-> 5. 中间有多头注意力(Multi-Head Attention)机制和前馈神经网络(Feed Forward)层；
-> 6. 每个主要组件后都有Add & Norm层，实现残差连接和层归一化；
-> 7. 解码器部分有额外的"Masked Multi-Head Attention"层，确保自回归生成过程中只能看到已生成的 tokens。
-
->  右图：展示了 GPT 模型的简化架构，与原始 Transformer 相比有以下区别：
->
-> 1. GPT只使用了 Transformer 的解码器部分 ，移除了编码器-解码器间的交叉注意力机制；
->
-> 2. 底部是文本和位置的组合嵌入(Text + Position Embedding)；
->
-> 3. 中间是N个重复的 Transformer 块，每个块包含：
->
->    - 多头自注意力机制(Multi-Head Casual Self Attention)，"Casual"表示它是单向的，只能看到当前及之前的 token
->
->    - 层归一化(Layer Norm)；
->
->    - 残差连接(+符号表示)；
->
->    - 前馈神经网络(Feed Forward)；
->
-> 4. 顶部是输出处理部分：
->    - 层归一化；
->    - 线性变换(Linear)；
->    - Softmax层，将输出转换为下一个 token 的概率分布。
-
-GPT 架构分为三个部分：
+GPT-2 采用基于 Transformer 的解码器架构，整个模型可以分为三个核心组件：
 
 1. 输入表示层：词元嵌入 (Word Token Embeddings) + 位置嵌入(Position Embeddings)；
 2. Transformer 解码器堆栈：多层 Transformer 块的堆叠；
 3. 输出投影层：将隐藏状态投影回词汇表空间。
 
-在代码里如下：
+| 组件                | 功能                            | 输入维度          | 输出维度           | 关键操作            |
+| ------------------- | ------------------------------- | ----------------- | ------------------ | ------------------- |
+| **输入表示层**      | 将离散 token 转换为连续向量表示 | `[n_seq]`         | `[n_seq, n_embd]`  | 嵌入查找 + 位置编码 |
+| **Transformer堆栈** | 序列建模与特征提取              | `[n_seq, n_embd]` | `[n_seq, n_embd]`  | 自注意力 + 前馈网络 |
+| **输出投影层**      | 将隐藏状态映射回词汇空间        | `[n_seq, n_embd]` | `[n_seq, n_vocab]` | 权重共享的线性投影  |
+
+在代码里表示如下：
 
 ```python
 def gpt2(inputs, wte, wpe, blocks, ln_f, n_head):  # [n_seq] -> [n_seq, n_vocab]
   	# GPT-2 模型的前向传播函数
-  	# 参数:
+  	# 参数：
     # inputs: 输入的 token 序列，形状为 [n_seq]
 		#    wte: 词元嵌入矩阵 (Word Token Embeddings)
 		#    wpe: 位置嵌入矩阵 (Word Position Embeddings)
 		# blocks: Transformer块的列表
 		#   ln_f: 最终的层归一化参数
 		# n_head: 注意力头的数量
-    # 返回:
+    # 返回：
     # 形状为 [n_seq, n_vocab] 的 logits，表示每个位置上词汇表中每个 token 的概率分布
     
     # 1. 输入表示：词元嵌入 + 位置嵌入
