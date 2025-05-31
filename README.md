@@ -638,7 +638,7 @@ for name, _ in tf.train.list_variables(tf_ckpt_path):
 
 ## 基础的神经网络层
 
-在深入了解 GPT 架构本身之前，我们需要先实现一些基础的神经网络层。
+在实现 GPT 架构本身之前，我们需要先实现一些基础的神经网络层。
 
 ### 高斯误差线性单元(GELU)
 
@@ -896,9 +896,12 @@ def gpt2(inputs, wte, wpe, blocks, ln_f, n_head):  # [n_seq] -> [n_seq, n_vocab]
 
 **词元嵌入 (Word Token Embeddings)**
 
-Token 本身并不能很好地表征神经网络。首先，Token 的相对大小会错误地传达信息(若词汇表中有 `Apple = 5` 和 `Table = 10`，但并不意味着 `2 * Apple = Table`)。其次，单个数字对于神经网络来说维度不够高。
+Token 本身并不能很好地表征神经网络。首先，Token 的相对大小会错误地传达信息(若词汇表中有 `Apple = 5` 和 `Table = 10`，但并不意味着 `2 * Apple = Table`)。其次，单个数字对于神经网络来说维度不够高，即信息容量有限。神经网络无法直接处理离散的符号，我们需要将这些离散符号转换为连续的数值向量，这个过程就是嵌入。
 
-为了解决这些限制，我们将利用[词向量(Word vector)](https://jaykmody.com/blog/attention-intuition/#word-vectors-and-similarity)，通过学习嵌入矩阵，将离散的 token 转换为连续的向量表示、将单一数值扩展为高维向量，提供更丰富的特征表示：
+利用[词向量(Word vector)](https://jaykmody.com/blog/attention-intuition/#word-vectors-and-similarity)，通过学习嵌入矩阵，将离散的 token 转换为连续的向量表示、将单一数值扩展为高维向量，提供更丰富的特征表示：
+
+| ![Hands-On Large Language Models Figure 2-7. A language model holds an embedding vector associated with each token in its tokenizer.](./README.assets/embedding_vector_associated.png) | ![Hands-On Large Language Models Figure 2-8. Language models produce contextualized token embeddings that improve on raw, static token embeddings.](./README.assets/improve_on_token_embeddings.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 ```python
 wte[inputs] # [n_seq] -> [n_seq, n_embd]
@@ -908,18 +911,48 @@ wte[inputs] # [n_seq] -> [n_seq, n_embd]
 
 `wte` 是一个 `[n_vocab, n_embd]` 矩阵。它充当查找表，矩阵中的第 i 行对应词汇表中的第 i 个 token 的向量表示。`wte[inputs]` 使用整数数组索引来检索与输入中的每个 token 相对应的向量。与神经网络中的其他参数一样，`wte` 是学习而来的。它在训练开始时随机初始化，然后通过梯度下降进行更新。
 
-这些连续的向量表示捕捉了词元的语义信息：语义相似的词元在向量空间中距离较近；向量之间可以进行数学运算，如 `vec("国王") - vec("男人") + vec("女人") ≈ vec("王后")`；这些向量作为模型的输入，使模型能够理解和处理自然语言。通过这种方式，GPT-2 模型将离散的、计算机易于处理的 token 转换为连续的、包含丰富语义信息的向量表示，为后续的神经网络处理奠定基础。
+这些连续的向量表示捕捉了词元的语义信息：语义相似的词元在向量空间中距离较近，向量之间可以进行数学运算；这些向量作为模型的输入，使模型能够理解和处理自然语言。通过这种方式，GPT-2 模型将离散的、计算机易于处理的 token 转换为连续的、包含丰富语义信息的向量表示，为后续的神经网络处理奠定基础。
+
+> 以下为一个  `vec("国王") - vec("男人") + vec("女人") ≈ vec("王后")` [示例](https://jalammar.github.io/illustrated-word2vec/)，这是“king”这个词的词嵌入(GloVe)：
+>
+> ```
+> [ 0.50451 , 0.68607 , -0.59517 , -0.022801, 0.60046 , -0.13498 , -0.08813 , 0.47377 , -0.61798 , -0.31012 , -0.076666, 1.493 , -0.034189, -0.98173 , 0.68229 , 0.81722 , -0.51874 , -0.31503 , -0.55809 , 0.66421 , 0.1961 , -0.13495 , -0.11476 , -0.30344 , 0.41177 , -2.223 , -1.0756 , -1.0783 , -0.34354 , 0.33505 , 1.9927 , -0.04234 , -0.64319 , 0.71125 , 0.49159 , 0.16754 , 0.34344 , -0.25663 , -0.8523 , 0.1661 , 0.40102 , 1.1685 , -1.0137 , -0.21585 , -0.15155 , 0.78321 , -0.91241 , -1.6106 , -0.64426 , -0.51042 ]
+> ```
+>
+> 这是一个包含 50 个数字的列表，我们可以可视化一下，以便与其他词向量进行比较：
+>
+> ![词元嵌入示例 1](./README.assets/word_token_embeddings_1.png)
+>
+> 我们可以对词向量进行加减运算，得到有趣的结果：
+>
+> ![词元嵌入示例 2](./README.assets/word_token_embeddings_2.png)
 
 **位置嵌入 (Position Embeddings)**
 
-Transformer架构本身是位置无关的，如果我们随机打乱输入序列中词元的顺序，模型的输出可能保持不变，这意味着输入的顺序对输出没有影响。然而，在自然语言中，词的顺序显然是至关重要的。例如，"猫追狗"和"狗追猫"表达的是完全不同的意思，尽管使用了相同的词。因此，我们需要某种方式将位置信息编码到输入中。
+Transformer 架构本身是位置无关的，如果我们随机打乱输入序列中词元的顺序，模型的输出可能保持不变，这意味着输入的顺序对输出没有影响。然而，在自然语言中，词的顺序显然是至关重要的。例如，"猫追狗"和"狗追猫"表达的是完全不同的意思，尽管使用了相同的词。因此，我们需要某种方式将位置信息编码到输入中。
 
-为了解决这个问题，GPT-2 使用了一个可学习的位置嵌入矩阵：
+原始 Transformer 论文和一些早期变体有绝对位置嵌入，本质上将第一个词元标记为位置 1，第二个标记为位置 2...等等。这些可以是静态方法(位置向量使用几何函数生成)或学习的(模型训练在学习过程中为它们分配值)。
+
+GPT-2 使用了一个可学习的位置嵌入矩阵：
 
 ```python
 wpe[range(len(inputs))] # [n_seq] -> [n_seq, n_embd]
 # n_seq: 实际序列长度，但是不超过 n_ctx 最大上下文长度(1024)
 # n_embd: 与词元嵌入相同的维度
+```
+
+```python
+# 位置嵌入矩阵的结构
+wpe = [
+    [pos_0_dim_0, pos_0_dim_1, ..., pos_0_dim_767],    # 位置0的编码
+    [pos_1_dim_0, pos_1_dim_1, ..., pos_1_dim_767],    # 位置1的编码
+    [pos_2_dim_0, pos_2_dim_1, ..., pos_2_dim_767],    # 位置2的编码
+    # ...
+    [pos_1023_dim_0, pos_1023_dim_1, ..., pos_1023_dim_767]  # 位置1023的编码
+]
+
+# 每一行都是768维的可学习向量
+# 通过训练学习到位置的语义表示
 ```
 
 `wpe` 是一个形状为 `[n_ctx, n_embd]` 的矩阵，矩阵的第 i 行包含一个向量，用于编码输入序列中第 i 个位置的信息，与词元嵌入矩阵类似，这个位置嵌入矩阵也是通过梯度下降学习得到的。
@@ -938,9 +971,11 @@ x = wte[inputs] + wpe[range(len(inputs))]  # [n_seq] -> [n_seq, n_embd]
 
 对于输入序列中的第 i 个词元， x[i] 包含了该词元的语义信息和它在序列中第 i 个位置的位置信息，即使相同的词元出现在不同位置，它们的最终表示也会不同模型能够理解"猫追狗"和"狗追猫"的区别，因为虽然词元相同，但位置嵌入不同。这种组合嵌入方法是 GPT-2 等 Transformer 模型成功处理序列数据的关键技术之一。
 
+> 关于为什么用加法而不是其他方式的讨论：[r/MachineLearning 讨论](https://www.reddit.com/r/MachineLearning/comments/rfssk6/d_in_transformers_why_are_positional_embeddings/)、[TensorFlow Tensor2Tensor Issue](https://github.com/tensorflow/tensor2tensor/issues/1591) 等。尽管向量相加，这两个子空间仍然可以通过某个学习到的变换进行基本独立的操作。
+
 ### 解码器堆栈(Decoder Stack)
 
-这段代码是 GPT-2 模型中最核心的部分，也是深度学习中"深度"的具体体现：
+这段代码是 GPT-2 模型中最核心的部分，体现了深度学习中"深度"的本质：
 
 ```python
 # 通过 n_layer 个 Transformer 解码器块的前向传播
@@ -950,9 +985,16 @@ for block in blocks: # blocks是一个包含 n_layer 个 Transformer 块参数�
     x = transformer_block(x, **block, n_head=n_head)  # [n_seq, n_embd] -> [n_seq, n_embd]
 ```
 
-这里的"深度"指的是神经网络中层的数量。在这个循环中，输入数据 x 依次通过多个 Transformer 解码器块，每个块都对数据进行一系列复杂的转换，然后将结果传递给下一个块。
+> 这里的"深度"指的是神经网络中层的数量。在这个循环中，输入数据 x 依次通过多个 Transformer 解码器块，每个块都对数据进行一系列复杂的转换，然后将结果传递给下一个块。[这是不同 GPT-2 模型 Size 的主要区别因素之一](https://jalammar.github.io/illustrated-gpt2/)：
+>
+> ![The Illustrated GPT-2 How high can we stack up these blocks?](./README.assets/how_high_can_we_stack_up_these_blocks.png)
 
-每个 Transformer 块通常包含：多头自注意力机制、前馈神经网络、残差连接、层归一化。
+每个 Transformer 块包含四个关键组件：
+
+1. 多头自注意力机制 ：捕捉序列中不同位置之间的依赖关系；
+2. 前馈神经网络 ：对每个位置独立进行非线性变换；
+3. 残差连接 ：缓解梯度消失问题，促进信息流动；
+4. 层归一化 ：稳定训练过程，加速收敛。
 
 堆叠更多的 Transformer 块(增加 n_layer 的值)可以：增强模型的表达能力、使模型能够学习更复杂的模式和关系、提高模型处理长距离依赖的能力。随着深度(层数)和宽度(嵌入维度)的增加，模型的参数数量和计算复杂度也会显著增加。这就是为什么大型语言模型需要强大的计算资源进行训练和推理的原因。
 
