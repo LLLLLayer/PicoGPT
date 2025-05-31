@@ -935,7 +935,9 @@ Transformer 架构本身是位置无关的，如果我们随机打乱输入序�
 
 原始 Transformer 论文和一些早期变体有绝对位置嵌入，本质上将第一个词元标记为位置 1，第二个标记为位置 2...等等。这些可以是静态方法(位置向量使用几何函数生成)或学习的(模型训练在学习过程中为它们分配值)。
 
-GPT-2 使用了一个可学习的位置嵌入矩阵：
+> Rotary Position Embedding (RoPE) 是 2021 年 [RoFormer: Enhanced Transformer with Rotary Position Embedding](https://huggingface.co/papers/2104.09864) 提出的技术，是在注意力计算中应用旋转变换，不需要额外的位置嵌入参数。
+
+GPT-2 使用了一个可学习的位置嵌入矩阵，使用固定位置编码表，为每个位置(0 到 max_position - 1)学习一个独立的嵌入向量：
 
 ```python
 wpe[range(len(inputs))] # [n_seq] -> [n_seq, n_embd]
@@ -1044,10 +1046,15 @@ return x @ wte.T  # [n_seq, n_embd] -> [n_seq, n_vocab]
 
 ### 解码器堆栈的解码器块(Decoder Block)
 
-Transformer 解码器块是 GPT-2 等模型的核心组件，它由两个主要子层组成：
+Transformer 解码器块是 GPT-2 的基本构建单元，每个块包含两个关键子层，通过残差连接和层归一化实现信息的有效传递：
 
 1. 多头因果自注意力机制(Multi-head causal self attention)；
+   - 唯一允许不同位置 token 交流信息的组件、因果性质确保自回归生成、并行计算，捕获多种依赖关系。
 2. 位置式前馈神经网络(Position-wise feed forward neural network)。
+   - 对每个位置独立进行非线性变换、两层全连接网络，中间使用 GELU 激活、增强模型的表达能力。
+
+| ![Hands-On Large Language Models The bulk of the Transformer LLM processing happens inside a series of Transformer blocks, each handing the result of its processing as input to the subsequent block.](./README.assets/a_series_of_transformer_blocks.png) | ![Figure 3-12. A Transformer block is made up of a self-attention layer and a feedforward neural network.](./README.assets/a_transformer_block_made_up.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 让我们详细分析 `transformer_block` 函数的实现：
 
@@ -1063,31 +1070,7 @@ def transformer_block(x, mlp, attn, ln_1, ln_2, n_head):  # [n_seq, n_embd] -> [
 
 每个子层都在输入上使用了层归一化，也使用了残差连接(即将子层的输入直接连接到子层的输出)。
 
-需要注意的事项：
-
-1. 多头因果自注意力机制是 Transformer 的核心，它具有以下特点：
-
-   - 信息交流功能 ：作为模型中唯一允许不同位置 token 互相交流的组件；
-
-   - 因果性质 ：确保每个位置只能关注自身及之前的位置，保证自回归特性；
-
-   - 并行计算 ：通过多个注意力头并行捕获不同类型的依赖关系；
-
-2. 前置层归一化(Pre-Norm)相比后置归一化有显著优势：
-
-   - 训练稳定性 ：减少梯度幅度的方差，使深层网络训练更稳定；
-
-   - 收敛速度 ：通常能够更快地收敛，允许使用更大的学习率；
-
-   - 实现方式 ： x + sublayer(layer_norm(x)) 而非原始 Transformer 的 layer_norm(x + sublayer(x))；
-
-   - 理论依据 ： [已被证明对提升 Transformer 的性能非常重要](https://huggingface.co/papers/2002.04745)。
-
-
-4. 残差连接(Residual connections，由 [ResNet](https://huggingface.co/papers/1512.03385) 推广)有几个不同的作用：
-   - 使深层神经网络更容易优化 ：为梯度提供了"捷径"，使其能够更容易地流回网络；这使得优化网络的早期层变得更加容易；
-   - 解决深度退化问题 ：没有残差连接时，当添加更多层时，更深的模型会出现性能下降，残差连接似乎为更深的网络提供了一定的准确度提升；
-   - 帮助解决梯度消失/爆炸问题 ：通过提供直接路径，减轻了深层网络中常见的梯度问题，使得信号能够更有效地传播。
+前置层归一化(Pre-Norm)相比后置归一化有显著优势，[已被证明对提升 Transformer 的性能非常重要](https://huggingface.co/papers/2002.04745)。残差连接(Residual connections，由 [ResNet](https://huggingface.co/papers/1512.03385) 推广)有几个不同的作用，如梯度流优化、解决深度退化问题等。
 
 #### 位置式前馈神经网络
 
