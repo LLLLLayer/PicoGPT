@@ -1049,11 +1049,16 @@ return x @ wte.T  # [n_seq, n_embd] -> [n_seq, n_vocab]
 Transformer 解码器块是 GPT-2 的基本构建单元，每个块包含两个关键子层，通过残差连接和层归一化实现信息的有效传递：
 
 1. 多头因果自注意力机制(Multi-head causal self attention)；
+
    - 唯一允许不同位置 token 交流信息的组件、因果性质确保自回归生成、并行计算，捕获多种依赖关系。
+
 2. 位置式前馈神经网络(Position-wise feed forward neural network)。
+
    - 对每个位置独立进行非线性变换、两层全连接网络，中间使用 GELU 激活、增强模型的表达能力。
 
-| ![Hands-On Large Language Models The bulk of the Transformer LLM processing happens inside a series of Transformer blocks, each handing the result of its processing as input to the subsequent block.](./README.assets/a_series_of_transformer_blocks.png) | ![Figure 3-12. A Transformer block is made up of a self-attention layer and a feedforward neural network.](./README.assets/a_transformer_block_made_up.png) |
+   > 在 Transformer 架构中，Multi-Layer Perceptron (MLP)、Position-wise Feed-Forward Network，这两个术语实际上指代同一个组件。
+
+| ![Hands-On Large Language Models Figure 3-11 The bulk of the Transformer LLM processing happens inside a series of Transformer blocks, each handing the result of its processing as input to the subsequent block.](./README.assets/a_series_of_transformer_blocks.png) | ![Hands-On Large Language Models Figure 3-12. A Transformer block is made up of a self-attention layer and a feedforward neural network.](./README.assets/a_transformer_block_made_up.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 让我们详细分析 `transformer_block` 函数的实现：
@@ -1074,9 +1079,23 @@ def transformer_block(x, mlp, attn, ln_1, ln_2, n_head):  # [n_seq, n_embd] -> [
 
 #### 位置式前馈神经网络
 
-"位置式"意味着这个前馈网络独立地应用于序列中的每个位置。对于输入序列中的每个token，都使用完全相同的前馈网络进行处理，且各个位置之间的处理是相互独立的。
+一个简单的例子可以帮助我们直观理解前馈神经网络的工作原理：如果我们向语言模型输入简单的文本“The Shawshank”，期望它生成“Redemption”作为最可能的下一个词，前馈神经网络是这一信息的来源。当模型训练建模里大规模文本档案(其中包含许多"The Shawshank Redemption"的提及)时，它学习并存储了使其在这项信息。
 
-这个函数实现了一个两层的前馈神经网络：
+一个大语言模型不仅仅是一个大型数据库，记忆只是文本生成配方中的一个成分。模型需要使用同样的机制在数据点和更复杂的模式之间进行插值，从而能够泛化——这意味着在它过去没有见过且不在其训练数据集中的输入上表现良好。
+
+当我们使用商业大语言模型时，我们得到的输出并不是前面提到的严格意义上的"语言模型"输出。向像 GPT-4 这样的聊天大语言模型输入"The Shawshank"可能会产生如下输出：
+
+```
+"The Shawshank Redemption"是1994年由弗兰克·达拉邦特执导的电影，改编自斯蒂芬·金创作的中篇小说"Rita Hayworth and Shawshank Redemption"...
+```
+
+这就是为什么语言模型随后要经过指令调优以及人类偏好和反馈微调训练，以匹配人们对模型应该输出什么的期望。
+
+![Hands-On Large Language Models Figure 3-13. The feedforward neural network component of a Transformer block likely does the majority of the model’s memorization and interpolation.](./README.assets/the_feedforward_neural_network_component.png)
+
+"位置式"意味着这个前馈网络独立地应用于序列中的每个位置。对于输入序列中的每个 token，都使用完全相同的前馈网络进行处理，且各个位置之间的处理是相互独立的。
+
+位置式前馈网络采用经典的"扩展-压缩"(Expand-and-Contract)架构，这个函数实现了一个两层的前馈神经网络：
 
 ```python
 def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd] 
@@ -1085,7 +1104,7 @@ def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd]
     # 1. 向上投影：扩展维度并引入非线性
     # 将输入 x 通过线性变换 linear(x, **c_fc) 映射到一个更高维度的空间
     # 输入维度从 [n_seq, n_embd] 变为 [n_seq, 4*n_embd] (维度扩大了4倍)
-    # 然后应用GELU激活函数 gelu() 引入非线性
+    # 然后应用 GELU 激活函数 gelu() 引入非线性
     a = gelu(linear(x, **c_fc))
     # 2. 向下投影：将维度压缩回原始大小
     # 将激活后的结果 a 通过另一个线性变换 linear(a, **c_proj) 映射回原始维度
@@ -1096,13 +1115,10 @@ def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd]
 
 这个 `ffn` 函数实现了 Transformer 架构中的位置式前馈神经网络，它通过先扩展维度、应用非线性激活函数，然后再压缩回原始维度的方式，增强了模型的表达能力。虽然结构简单，但它是 Transformer 模型中不可或缺的组成部分。
 
-> 在 Transformer 架构中，前馈网络通常将维度扩展到原来的 4 倍，这是一种经验性的设计选择：
+> 在 Transformer 架构中，前馈网络通常将维度扩展到原来的 4 倍，这是一种经验性的设计选择。
 >
-> 1. 增加模型容量，使其能够学习更复杂的特征；
-> 2. 提供足够的表达能力，捕捉更丰富的语言模式；
-> 3. 在实践中被证明是一个较好的平衡点(在模型复杂度和性能之间)。
 
-回忆一下我们的 `params` 字典，我们的 `mlp`参数如下：
+回忆一下我们的 `params` 字典，我们的 `mlp` 参数如下：
 
 ```python
 "mlp": {
@@ -1126,9 +1142,12 @@ params 字典中的 mlp 参数直接对应了 `ffn` 函数中的线性变换参�
 
 ##### 注意力(Attention)
 
-注意力机制允许模型关注输入序列中的特定部分，而不是平等地处理所有输入。在 Transformer 中，这使得模型能够捕捉序列中的长距离依赖关系和复杂模式。
+参考[示例](https://lilianweng.github.io/posts/2018-06-24-attention/)，人类的视觉注意力使我们能够聚焦于“高分辨率”的特定区域(例如黄色框中的尖耳朵)，同时以“低分辨率”感知周围的图像(例如雪景背景和服装如何)。同样，我们可以用一个句子或一个紧密相关的语境来解释单词之间的关系。当我们看到“eating”时，我们预计很快就会遇到一个与食物相关的词。颜色词描述的是食物，但与“eating”并不直接相关：
 
-> 可以参考 [Attention? Attention!](https://lilianweng.github.io/posts/2018-06-24-attention/) 和 [Visualizing A Neural Machine Translation Model (Mechanics of Seq2seq Models With Attention)](https://jalammar.github.io/visualizing-neural-machine-translation-mechanics-of-seq2seq-models-with-attention/)，这些都是关于注意力机制的优秀解释。
+| ![Attention? Attention! Figure 1 A Shiba Inu in a men’s outfit](./README.assets/attention_attention_1.png) | ![Attention? Attention! Figure 2 One word "attends" to other words in the same sentence differently.](./README.assets/attention_attention_2.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+
+注意力机制允许模型关注输入序列中的特定部分，而不是平等地处理所有输入。在 Transformer 中，这使得模型能够捕捉序列中的长距离依赖关系和复杂模式。
 
 这个函数实现了缩放点积注意力机制：
 $$
@@ -1138,36 +1157,37 @@ $$
 ```python
 def attention(q, k, v):  # [n_q, d_k], [n_k, d_k], [n_k, d_v] -> [n_q, d_v]
     # 计算缩放点积注意力
-  	# q：查询矩阵(Query)，形状为 [n_q, d_k] ，其中 n_q 是查询序列长度， d_k 是键的维度
-		# k：键矩阵(Key)，形状为 [n_k, d_k] ，其中 n_k 是键序列长度
-    # v：值矩阵(Value)，形状为 [n_k, d_v] ，其中 d_v 是值的维度
+  	# q：查询矩阵(Query)，用于"询问"其他位置的信息，形状为 [n_q, d_k] ，其中 n_q 是查询序列长度， d_k 是键的维度
+		# k：键矩阵(Key)，用于"回答"是否与查询相关，形状为 [n_k, d_k] ，其中 n_k 是键序列长度
+    # v：值矩阵(Value)，包含实际要传递的信息内容，形状为 [n_k, d_v] ，其中 d_v 是值的维度
     return softmax(q @ k.T / np.sqrt(q.shape[-1])) @ v
 ```
 
-1. 输入参数 ：
+> Q、K、V 是通过将输入序列的每个位置的嵌入向量，分别通过三个不同的线性投影(权重矩阵)变换得到的，这些投影矩阵是模型训练过程中学习到的参数。
 
-   - `q`：查询矩阵(Query)，形状为 [n_q, d_k] ，其中 n_q 是查询序列长度， d_k 是键的维度
-   - `k`：键矩阵(Key)，形状为 [n_k, d_k] ，其中 n_k 是键序列长度
-   - `v`：值矩阵(Value)，形状为 [n_k, d_v] ，其中 d_v 是值的维度
-2. 计算步骤 ：
+计算步骤 ：
 
-   - `q @ k.T`：计算查询和键的点积，得到注意力分数矩阵，形状为 [n_q, n_k]
-   - `/np.sqrt(q.shape[-1])` ：除以键维度的平方根进行缩放，这是为了防止点积值过大导致softmax梯度消失
-   - `softmax(...)`：对缩放后的注意力分数应用softmax函数，得到注意力权重
-   - `... @ v`：用注意力权重对值进行加权求和，得到最终的注意力输出，形状为 [n_q, d_v]
+- `q @ k.T`：计算查询和键的点积，得到注意力分数矩阵，形状为 [n_q, n_k]；
+- `/np.sqrt(q.shape[-1])` ：除以键维度的平方根进行缩放，这是为了防止点积值过大导致 softmax 梯度消失；
+- `softmax(...)`：对缩放后的注意力分数应用softmax函数，得到注意力权重；
+- `... @ v`：用注意力权重对值进行加权求和，得到最终的注意力输出，形状为 [n_q, d_v]。
 
-这个简洁的 attention 函数是 Transformer 架构的核心，它通过计算查询与键的相似度，并用这些相似度对值进行加权，实现了序列中不同位置之间的信息交流。这种机制是现代大型语言模型强大能力的基础。
+这个 attention 函数是 Transformer 架构的核心，它通过计算查询与键的相似度，并用这些相似度对值进行加权，实现了序列中不同位置之间的信息交流，这种机制是现代大型语言模型强大能力的基础。
 
 ##### 自注意力(Self-Attention)
+
+“ The animal didn't cross the street because it was too tired”这句话里的“it”指的是什么？它指的是街道还是动物？对人类来说，这是一个简单的问题，但对算法来说却并非如此简单。当模型处理“it”这个词时，[自注意力机制](https://jalammar.github.io/illustrated-transformer/)让模型将“it”与“animal”联系起来：
+
+![As we are encoding the word "it" in encoder #5 (the top encoder in the stack), part of the attention mechanism was focusing on "The Animal", and baked a part of its representation into the encoding of "it".](./README.assets/self_attention_it.png)
 
 当查询(q)、键(k)和值(v)都来自同一个源时，我们执行的是自注意力(让输入序列关注自身)：
 
 ```python
 def self_attention(x): # [n_seq, n_embd] -> [n_seq, n_embd] 
-    return attention(q=x, k=x, v=x) 
+    return attention(q=x, k=x, v=x)
 ```
 
-例如，如果我们的输入是"Jay去商店，他买了10个苹果"，我们会让单词"他"关注所有其他单词，包括"Jay"，这意味着模型可以学习识别"他"指的是"Jay"。
+
 
 我们可以通过为 q、k、v 和注意力输出引入投影矩阵来增强自注意力：
 
