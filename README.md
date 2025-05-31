@@ -1,4 +1,4 @@
-# PicoGPT / 60 行 NumPy 实现 GPT-2
+# PicoGPT / 60 行 NumPy 代码实现 GPT-2
 # 项目
 
 本项目从  [jaymody/picoGPT](https://github.com/jaymody/picoGPT) 分叉而来，文章主体内容提纲翻译和整理自  [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)。此外，本文引用了来自 [Jay Alammar](https://jalammar.github.io/) 的 [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/) 等书籍、博客的部分内容。
@@ -894,6 +894,8 @@ def gpt2(inputs, wte, wpe, blocks, ln_f, n_head):  # [n_seq] -> [n_seq, n_vocab]
 
 ### 嵌入(Embeddings)
 
+![Hands-On Large Language Models Figure 3-5. The tokenizer has a vocabulary of 50,000 tokens. The model has token embeddings associated with those embeddings.](./README.assets/the_components_of_the_forward_pass_2.png)
+
 **词元嵌入 (Word Token Embeddings)**
 
 Token 本身并不能很好地表征神经网络。首先，Token 的相对大小会错误地传达信息(若词汇表中有 `Apple = 5` 和 `Table = 10`，但并不意味着 `2 * Apple = Table`)。其次，单个数字对于神经网络来说维度不够高，即信息容量有限。神经网络无法直接处理离散的符号，我们需要将这些离散符号转换为连续的数值向量，这个过程就是嵌入。
@@ -977,6 +979,8 @@ x = wte[inputs] + wpe[range(len(inputs))]  # [n_seq] -> [n_seq, n_embd]
 
 这段代码是 GPT-2 模型中最核心的部分，体现了深度学习中"深度"的本质：
 
+![Hands-On Large Language Models Figure 3-4. A Transformer LLM is made up of a tokenizer, a stack of Transformer blocks, and a language modeling head.](./README.assets/the_components_of_the_forward_pass_1.png)
+
 ```python
 # 通过 n_layer 个 Transformer 解码器块的前向传播
 for block in blocks: # blocks是一个包含 n_layer 个 Transformer 块参数的列表
@@ -1002,7 +1006,10 @@ for block in blocks: # blocks是一个包含 n_layer 个 Transformer 块参数�
 
 ### 词汇投影(Projection to Vocab)
 
-词汇投影是 GPT-2 模型中的最后一个关键步骤，它将 Transformer 块的输出转换为词汇表上的概率分布：
+词汇投影是 GPT-2 模型的最终输出层，负责将高维语义表示转换为词汇表上的概率分布。这一步骤决定了模型生成下一个token的能力：
+
+| ![Hands-On Large Language Models Figure 3-6. At the end of the forward pass, the model predicts a probability score for each token in the vocabulary.](./README.assets/the_components_of_the_forward_pass_3.png) | ![Hands-On Large Language Models Figure 3-8. Each token is processed through its own stream of computation (with some interaction between them in attention steps, as we’ll later see).](./README.assets/the_components_of_the_forward_pass_4.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 ```python
 # 最终层归一化
@@ -1018,17 +1025,9 @@ return x @ wte.T  # [n_seq, n_embd] -> [n_seq, n_vocab]
 1. 最终层归一化：在投影之前，首先对 Transformer 块的输出应用层归一化，这是 GPT-2 架构特有的设计(原始 GPT 和 Transformer 论文中没有)，层归一化有助于稳定深层网络的训练和推理；
 2. 矩阵乘法投影：使用词元嵌入矩阵的转置(wte.T)进行投影，输入形状为 `[n_seq, n_embd]`，输出形状为 `[n_seq, n_vocab]` 每个位置的输出向量包含词汇表中每个 token 的 logit 分数。
 
-权重共享存在一定的优势：
+其中，模型输出的是logits(未归一化的分数)，而不是应用 softmax 后的概率：
 
-GPT-2 重用词元嵌入矩阵(wte)进行投影，而不是使用单独的权重矩阵：
-
-1. 参数节约：减少了模型的参数数量(虽然在GPT-3规模上这种节约可以忽略不计)
-
-2. 更丰富的表示：同一矩阵既负责从 token 映射到嵌入空间，也负责从嵌入空间映射回 token 空间理论上，这种双向映射可以学习到比两个独立矩阵更丰富的表示。
-
-其中，模型输出的是logits(未归一化的分数)，而不是应用softmax后的概率：
-
-1. 贪婪采样的等效性：由于 softmax 是单调函数， `np.argmax(logits)` 等同于 `np.argmax(softmax(logits))`，对于贪婪采样来说，应用 softmax是多余的；
+1. 贪婪采样的等效性：由于 softmax 是单调函数， `np.argmax(logits)` 等同于 `np.argmax(softmax(logits))`，对于贪婪采样来说，应用 softma x是多余的；
 
 2. 信息保留：logits 包含更多信息，可以随时通过应用 softmax 转换为概率，但从概率无法恢复回 logits，因此输出 logits 提供了最大的灵活性；
 
@@ -1041,9 +1040,9 @@ GPT-2 重用词元嵌入矩阵(wte)进行投影，而不是使用单独的权重
 3. 迁移学习：例如，可以添加分类头用于特定任务的微调；
 4. 多任务能力：就像神话中的九头蛇一样，模型可以有多个"头"来处理不同任务。
 
-这种设计使 GPT-2 模型在完成预训练后能够灵活地适应各种下游任务，而不仅仅局限于语言生成。
+这种设计使GPT-2能够通过简单替换输出头来适应各种下游任务，而无需重新训练整个模型。
 
-### 解码器块(Decoder Block)
+### 解码器堆栈的解码器块(Decoder Block)
 
 Transformer 解码器块是 GPT-2 等模型的核心组件，它由两个主要子层组成：
 
