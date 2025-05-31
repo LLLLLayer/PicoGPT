@@ -1169,7 +1169,7 @@ def attention(q, k, v):  # [n_q, d_k], [n_k, d_k], [n_k, d_v] -> [n_q, d_v]
 
 - `q @ k.T`：计算查询和键的点积，得到注意力分数矩阵，形状为 [n_q, n_k]；
 - `/np.sqrt(q.shape[-1])` ：除以键维度的平方根进行缩放，这是为了防止点积值过大导致 softmax 梯度消失；
-- `softmax(...)`：对缩放后的注意力分数应用softmax函数，得到注意力权重；
+- `softmax(...)`：对缩放后的注意力分数应用 softmax 函数，得到注意力权重；
 - `... @ v`：用注意力权重对值进行加权求和，得到最终的注意力输出，形状为 [n_q, d_v]。
 
 这个 attention 函数是 Transformer 架构的核心，它通过计算查询与键的相似度，并用这些相似度对值进行加权，实现了序列中不同位置之间的信息交流，这种机制是现代大型语言模型强大能力的基础。
@@ -1186,8 +1186,6 @@ def attention(q, k, v):  # [n_q, d_k], [n_k, d_k], [n_k, d_v] -> [n_q, d_v]
 def self_attention(x): # [n_seq, n_embd] -> [n_seq, n_embd] 
     return attention(q=x, k=x, v=x)
 ```
-
-
 
 我们可以通过为 q、k、v 和注意力输出引入投影矩阵来增强自注意力：
 
@@ -1439,182 +1437,22 @@ the most powerful machines on the planet.
 
 # 接下来做什么
 
-## GPU/TPU 支持
+1. GPU/TPU 支持： 将 `import numpy as np` 替换为 `import jax.numpy as np` 即可获得硬件加速能力。
 
-JAX 是一个高性能的数值计算库，它结合了 NumPy 的易用性和 XLA(加速线性代数)的性能。JAX 的主要特点是：
+2. 反向传播(Backpropagation)：使用 `jax.grad(loss_fn)(params)` 自动计算梯度，无需手动实现反向传播。
 
-1. 与 NumPy 接口兼容 ：JAX 提供了与 NumPy 几乎相同的 API，使得代码迁移非常简单；
-2. 自动微分 ：支持自动求导，对机器学习模型训练非常有用；
-3. 硬件加速 ：原生支持 GPU 和 TPU，可以显著提高计算速度；
-4. 即时编译 ：使用 XLA 编译器优化计算图。
+3. 批处理(Batching)：通过 `jax.vmap(gpt2, in_axes=[0, None, ...])` 实现自动批处理，提升训练效率。
 
-将我们的 GPT-2 实现从 NumPy 转换为 JAX 只需要一行代码的改变：
+4. 推理优化(Inference Optimization)：实现 KV 缓存和并行注意力头计算是最重要的性能优化，详见 [Transformer 推理优化](https://lilianweng.github.io/posts/2023-01-10-inference-optimization/)。
 
-```python
-# 原来的导入
-import numpy as np
+5. 训练(Training)：真正的挑战在于数据和模型的规模化，参考 [大模型训练指南](https://lilianweng.github.io/posts/2021-09-25-train-large/) 了解分布式训练。
 
-# 改为
-import jax.numpy as np
-```
+6. 评估(Evaluation)：使用 [HELM](https://arxiv.org/abs/2211.09110) 等综合基准测试，但需对评估指标保持批判性思维。
 
-由于 JAX 的 NumPy API 与原始 NumPy 高度兼容，我们不需要修改任何其他代码。这种简单的替换就能让我们的实现利用 GPU/TPU 的计算能力，大大加速模型的推理过程。
+7. 架构改进(Architecture Improvements)：探索 [X-Transformers](https://github.com/lucidrains/x-transformers) 了解最新的 Transformer 架构研究。
+8. 停止生成(Stopping Generation)：引入 EOS 标记控制生成长度，避免固定 token 数量的限制。
 
-## 反向传播(Backpropagation)
-
-如果我们将NumPy替换为JAX，那么计算梯度就变得非常简单：
-
-```python
-def lm_loss(params, inputs, n_head) -> float:
-    x, y = inputs[:-1], inputs[1:]  # 输入序列和目标序列
-    logits = gpt2(x, **params, n_head=n_head)  # 获取模型输出
-    loss = np.mean(-log_softmax(logits)[y])  # 计算交叉熵损失
-    return loss
-
-grads = jax.grad(lm_loss)(params, inputs, n_head)
-```
-
-自动计算梯度：`jax.grad(lm_loss)` 创建一个新函数，该函数计算 `lm_loss` 相对于其第一个参数(这里是 params )的梯度`(params, inputs, n_head)` 将参数传递给这个新创建的梯度函数结果 `grads` 包含了模型所有参数相对于损失函数的梯度。这种方法的优点是：无需手动实现反向传播算法、JAX 自动处理计算图的构建和梯度计算、代码简洁明了，只需几行就能实现完整的梯度计算。
-
-## 批处理(Batching)
-
-如果我们将NumPy替换为JAX，那么，让我们的gpt2函数支持批处理就变得非常简单：
-
-```python
-gpt2_batched = jax.vmap(gpt2, in_axes=[0, None, None, None, None, None])
-gpt2_batched(batched_inputs) # [batch, seq_len] -> [batch, seq_len, vocab]
-```
-
-JAX的 vmap 函数(向量化映射)是一个强大的工具，它可以自动将函数转换为支持批处理的版本。在这个例子中：
-
-1. `jax.vmap(gpt2, in_axes=[0, None, None, None, None, None])` 创建了一个新函数 `gpt2_batched`
-2. `in_axes=[0, None, None, None, None, None]` 指定了哪些参数应该被批处理：
-   1. 0 表示第一个参数(inputs)应该在第0维度上批处理；
-   2. None 表示其他参数(wte , wpe , blocks , ln_f , n_head)不需要批处理，所有批次共享这些参数。
-
-批处理后的函数可以处理形状为 `[batch, seq_len]` 的输入，并返回形状为 `[batch, seq_len, vocab]` 的输出，这种方法的优点是我们不需要修改原始的 gpt2 函数，JAX 会自动处理批处理逻辑。
-
-## 推理优化(Inference Optimization)
-
-我们的实现相当低效。除了GPU支持和批处理外，最快且影响最大的优化是实现KV缓存(key-value cache)。此外，我们目前是顺序计算注意力头，而实际上应该并行计算。
-
-KV缓存：KV缓存的基本思想是在自回归生成过程中，保存并重用之前计算过的键(K)和值(V)矩阵，避免重复计算。这对于长序列生成特别有效，因为每生成一个新token，我们只需要计算新token的查询(Q)、键(K)和值(V)，然后将新的K和V添加到缓存中。
-
-更多优化资源：还有许多其他推理优化方法。如 [Large Transformer Model Inference Optimization](https://lilianweng.github.io/posts/2023-01-10-inference-optimization/)、[Transformer Inference Arithmetic](Transformer Inference Arithmetic)，这些资源详细介绍了各种优化技术，如量化、剪枝、蒸馏、张量并行、流水线并行等，可以显著提高大型Transformer模型的推理效率。
-
-## 训练(Training)
-
-训练GPT模型与训练标准神经网络类似(相对于损失函数的梯度下降)。当然，在训练GPT时，你还需要使用一系列标准技巧(即使用Adam优化器，找到最佳学习率，通过dropout和/或权重衰减进行正则化，使用学习率调度器，使用正确的权重初始化，批处理等...)。
-
-训练一个好的GPT模型的真正秘诀在于能够扩展数据和模型，这也是真正的挑战所在。
-
-对于数据扩展，你需要一个大型、高质量且多样化的文本语料库：
-
-1. 大型 意味着数十亿个标记(TB级数据)。例如，查看 [The Pile](https://pile.eleuther.ai/)，这是一个用于大型语言模型的开源预训练数据集。
-2. 高质量 意味着你需要过滤掉重复的例子、格式不正确的文本、不连贯的文本、垃圾文本等...
-3. 多样化 意味着不同长度的序列，涉及许多不同的主题，来自不同的来源，具有不同的观点等...当然，如果数据中存在任何偏见，它也会反映在模型中，所以你也需要注意这一点。
-
-将模型扩展到数十亿参数涉及大量的工程工作(以及资金，哈哈)。训练框架可能变得异常复杂和冗长。一个好的起点是 [How to Train Really Large Models on Many GPUs?]( https://lilianweng.github.io/posts/2021-09-25-train-large/)。在这个主题上，还有 [NVIDIA 的 Megatron 框架](https://github.com/NVIDIA/Megatron-LM)、[Cohere 的训练框架](https://arxiv.org/abs/2204.06514)、[Google 的 PALM](https://huggingface.co/papers/2204.02311)、用于训练 EleutherAI 开源模型的开 [mesh-transformer-jax](https://github.com/kingoflolz/mesh-transformer-jax)，以及更多其他框架。
-
-## 评估(Evaluation)
-
-如何评估大型语言模型？这是一个非常困难的问题。[HELM](https://arxiv.org/abs/2211.09110) 相当全面，是一个很好的起点，但你应该始终对基准测试和评估指标持怀疑态度。
-
-## 架构改进(Architecture Improvements)
-
-我建议看看 [X-Transformers](https://github.com/lucidrains/x-transformers)。它包含了关于 Transformer 架构的最新最先进的研究。
-
-## 停止生成(Stopping Generation)
-
-我们当前的实现要求我们提前指定想要生成的确切 token 数量。这不是一个很好的方法，因为我们的生成结果可能太长、太短或在句子中间被截断。
-
-为了解决这个问题，我们可以引入一个特殊的句子结束(EOS)标记。在预训练期间，我们将EOS标记附加到输入的末尾(例如，tokens = ["not", "all", "heroes", "wear", "capes", ".", "<|EOS|>"])。在生成过程中，我们只需在遇到EOS标记时停止(或者如果我们达到某个最大序列长度)：
-
-```python
-def generate(inputs, eos_id, max_seq_len): 
-    prompt_len = len(inputs) 
-    while inputs[-1] != eos_id and len(inputs) < max_seq_len: 
-        output = gpt(inputs) 
-        next_id = np.argmax(output[-1]) 
-        inputs.append(int(next_id)) 
-    return inputs[prompt_len:] 
-```
-
-GPT-2 在预训练时没有使用EOS标记，所以我们不能在我们的代码中使用这种方法，但现在大多数 LLM 都使用 EOS 标记。
-
-## 微调(Fine-tuning)
-
-我们在训练部分简要提到了微调。回顾一下，微调是指我们重用预训练权重来训练模型完成某些下游任务。我们称这个过程为迁移学习。
-
-理论上，我们可以使用零样本或少样本提示来让模型完成我们的任务，但是，如果你有标记数据集，微调GPT会产生更好的结果(这些结果可以随着额外数据和更高质量数据的增加而扩展)。
-
-微调相关的主题有几个，我将它们分解如下：
-
-### 分类微调(Classification Fine-tuning)
-
-在分类微调中，我们给模型一些文本，并要求它预测该文本属于哪个类别。例如，考虑 IMDB 数据集，其中包含将电影评为好或坏的电影评论：
-
-```
---- 示例1 ---
-文本：我不会在一美元租赁之夜租这部电影。
-标签：差
---- 示例2 ---
-文本：我不知道为什么我这么喜欢这部电影，但我从不厌倦看它。
-标签：好
---- 示例3 ---
-...
-```
-
-要微调我们的模型，我们将语言建模头替换为分类头，并将其应用于最后一个 token 输出：
-
-```python
-def gpt2(inputs, wte, wpe, blocks, ln_f, cls_head, n_head): 
-    x = wte[inputs] + wpe[range(len(inputs))] 
-    for block in blocks: 
-        x = transformer_block(x, **block, n_head=n_head) 
-    x = layer_norm(x, **ln_f) 
-
-    # 投影到n_classes 
-    # [n_embd] @ [n_embd, n_classes] -> [n_classes] 
-    return x[-1] @ cls_head 
-```
-
-我们只使用最后一个token输出 x[-1] ，因为我们只需要为整个输入生成一个概率分布，而不是像语言建模那样生成n_seq个分布。我们特别选择最后一个token(而不是第一个token或所有token的组合)，因为最后一个token是唯一允许关注整个序列的token，因此它包含有关整个输入文本的信息。
-
-像往常一样，我们相对于交叉熵损失进行优化：
-
-```python
-def singe_example_loss_fn(inputs: list[int], label: int, params) -> float: 
-    logits = gpt(inputs, **params) 
-    probs = softmax(logits) 
-    loss = -np.log(probs[label]) # 交叉熵损失 
-    return loss 
-```
-
-### 指令微调(Instruction Fine-tuning)
-
-如今，大多数最先进的大型语言模型在预训练后还会经历额外的指令微调步骤。在这一步骤中，模型在数千个人工标记的指令提示+完成对上进行(生成式)微调。指令微调也可以称为监督微调，因为数据是人工标记的(即监督的)。
-
-那么指令微调的好处是什么？虽然预测维基百科文章中的下一个词使模型擅长继续句子，但这并不使它特别擅长遵循指令、进行对话或总结文档(这些都是我们希望GPT做的事情)。在人工标记的指令+完成对上微调它们是教导模型如何变得更有用的方式，并使它们更容易交互。我们称之为AI对齐，因为我们正在使模型按照我们希望的方式行事和表现。对齐是一个活跃的研究领域，不仅包括遵循指令(还包括偏见、安全性、意图等)。
-
-这些指令数据具体是什么样子？Google的 [FLAN 模型](https://huggingface.co/papers/2109.01652)是在各种学术NLP数据集(已经是人工标记的)上训练的：
-
-![Figure 3: Datasets and task clusters used in this paper (../../README.assets/datasets_and_task_clusters_used_in_this_paper.png).](./README.assets/datasets_and_task_clusters_used_in_this_paper.png)
-
-另一方面，OpenAI的 [InstructGPT](https://huggingface.co/papers/2203.02155) 是在从他们自己的API收集的提示上训练的。然后他们付费让工作人员为这些提示编写完成内容。以下是数据的细分：
-
-![Table 1 and 2 from InstructGPT paper](./README.assets/table_1_and_2_from_instructgpt_paper.png)
-
-### 参数高效微调(Parameter Efficient Fine-tuning)
-
-当我们在上述部分谈论微调时，假设我们正在更新所有模型参数。虽然这会产生最佳性能，但在计算方面(需要在整个模型上反向传播)和存储方面(对于每个微调模型，你需要存储参数的全新副本)都很昂贵。对于指令微调，这是可以的，我们希望最大化性能，但如果你随后想为各种下游任务微调100个不同的模型，那么你就会遇到问题。
-
-解决这个问题的最简单方法是只更新头部并冻结(即使不可训练)模型的其余部分。这将加速训练并大大减少新参数的数量，但其性能不会像完全微调那样好(我们缺乏深度学习中的"深度")。我们可以选择性地冻结特定层(即冻结除最后4层之外的所有层，或冻结每隔一层，或冻结除多头注意力参数之外的所有参数)，这将有助于恢复一些深度。这将表现得更好，但我们变得不那么参数高效，并减少了我们的训练速度提升。
-
-相反，我们可以利用参数高效微调(PEFT)方法。PEFT是一个活跃的研究领域，有很多不同的方法可供选择。
-
-例如，以 [Adapters 论文](https://huggingface.co/papers/1902.00751)为例。在这种方法中，我们在transformer块中的FFN和MHA层之后添加一个额外的"适配器"层。适配器层只是一个简单的2层全连接神经网络，其中输入和输出维度是n_embd，而隐藏维度小于n_embd：
-
-![Figure 2. Architecture of the adapter module and its integration with the Transformer.](./README.assets/architecture_of_the_adapter_module_and_its_integration_with_the_transformer.png)
-
-隐藏维度的大小是我们可以设置的超参数，使我们能够在参数和性能之间进行权衡。对于BERT模型，论文显示使用这种方法可以将训练参数减少到 2%，同时与完全微调相比只承受很小的性能损失(<1%)。
+9. 微调(Fine-tuning)
+   1. 分类微调：替换语言建模头为分类头，使用最后一个 token 的输出进行分类。
+   2. 指令微调：在人工标记的指令-完成对上训练，提升模型的指令遵循能力和实用性。
+   3. 参数高效微调(PEFT)：使用 [Adapters](https://huggingface.co/papers/1902.00751) 等方法，仅训练少量参数即可获得接近全量微调的效果。
