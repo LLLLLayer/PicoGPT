@@ -210,7 +210,7 @@ np.random.choice(np.arange(vocab_size), p=output[-1]) # pants
 
 ```python
 def lm_loss(inputs: list[int], params) -> float:
-  	# 计算语言模型的交叉熵损失
+    # 计算语言模型的交叉熵损失
     # 参数：
     # inputs: 输入 token ID 序列，例如 [not, all, heroes, wear, capes]
     # params: 模型参数
@@ -249,8 +249,8 @@ def train(texts: list[list[str]], params) -> dict:
     # 返回：
     # dict: 训练后的模型参数
     for text in texts:
-      	#
-      	# 用 tokenizer.encode(text) 把文本转成 token id 的序列，方便模型处理
+        #
+        # 用 tokenizer.encode(text) 把文本转成 token id 的序列，方便模型处理
         inputs = tokenizer.encode(text)
         #
         # 计算当前样本的损失：
@@ -363,7 +363,7 @@ def main(prompt: str,
 
     # 5. 将生成的 token ID 序列通过解码器映射回可读文本
     output_text = encoder.decode(output_ids)
-		
+    
     # 6. 返回结果
     return output_text
 
@@ -607,7 +607,7 @@ import tensorflow as tf
 tf_ckpt_path = tf.train.latest_checkpoint("models/124M")
 # 遍历检查点中的所有变量
 for name, _ in tf.train.list_variables(tf_ckpt_path):
-  	# 加载变量并移除多余的维度
+    # 加载变量并移除多余的维度
     arr = tf.train.load_variable(tf_ckpt_path, name).squeeze()
     # 输出结果展示了模型中每个参数的名称和形状
     print(f"{name}: {arr.shape}")
@@ -656,8 +656,8 @@ GELU 激活函数 `GELU(x) = x * Φ(x)` 可以被理解为：将输入值 x 乘�
 
 ```python
 def gelu(x):
- 		# GELU 激活函数的近似实现
-  	return 0.5 * x * (1 + np.tanh(np.sqrt(2 / np.pi) * (x + 0.044715 * x**3)))
+     # GELU 激活函数的近似实现
+    return 0.5 * x * (1 + np.tanh(np.sqrt(2 / np.pi) * (x + 0.044715 * x**3)))
 ```
 
 GELU 对输入进行逐元素操作：
@@ -740,12 +740,12 @@ def layer_norm(x, g, b, eps: float = 1e-5):
     # 返回：
     # 归一化后的张量
     # 
-  	# 计算特征维度上的均值和方差
+    # 计算特征维度上的均值和方差
     mean = np.mean(x, axis=-1, keepdims=True)    # 对输入张量 x 在最后一个维度(通常是特征维度)上计算均值
     variance = np.var(x, axis=-1, keepdims=True) # 同样在最后一个维度上计算方差
      # 标准化处理：减均值除以标准差
     x = (x - mean) / np.sqrt(variance + eps)     # 将输入减去均值并除以标准差，实现标准化
-    																				     # eps 是一个小常数(默认为1e-5)，用于数值稳定性，防止除以零。
+                                                 # eps 是一个小常数(默认为1e-5)，用于数值稳定性，防止除以零。
     # 应用可学习的缩放和偏移参数
     return g * x + b # 使用可学习的参数 g(gamma)和 b(beta)对标准化后的数据进行线性变换
 ```
@@ -809,8 +809,8 @@ $$
 
 ```python
 def linear(x, w, b): 
-  	# 执行线性变换(全连接层操作)
-  	# [m, in], [in, out], [out] -> [m, out]
+    # 执行线性变换(全连接层操作)
+    # [m, in], [in, out], [out] -> [m, out]
     # 参数：
     # x: 输入张量，形状为 [batch_size, in_features](m个样本，每个样本有in个特征)
     # w: 权重矩阵，形状为 [in_features, out_features](将in维输入映射到out维输出)
@@ -862,21 +862,21 @@ GPT-2 采用基于 Transformer 的解码器架构，整个模型可以分为三�
 
 ```python
 def gpt2(inputs, wte, wpe, blocks, ln_f, n_head):  # [n_seq] -> [n_seq, n_vocab]
-  	# GPT-2 模型的前向传播函数
-  	# 参数：
+    # GPT-2 模型的前向传播函数
+    # 参数：
     # inputs: 输入的 token 序列，形状为 [n_seq]
-		#    wte: 词元嵌入矩阵 (Word Token Embeddings)
-		#    wpe: 位置嵌入矩阵 (Word Position Embeddings)
-		# blocks: Transformer块的列表
-		#   ln_f: 最终的层归一化参数
-		# n_head: 注意力头的数量
+    #    wte: 词元嵌入矩阵 (Word Token Embeddings)
+    #    wpe: 位置嵌入矩阵 (Word Position Embeddings)
+    # blocks: Transformer块的列表
+    #   ln_f: 最终的层归一化参数
+    # n_head: 注意力头的数量
     # 返回：
     # 形状为 [n_seq, n_vocab] 的 logits，表示每个位置上词汇表中每个 token 的概率分布
     
     # 1. 输入表示：词元嵌入 + 位置嵌入
     # 将输入序列中的每个 token 转换为嵌入向量、为每个位置添加位置编码
     x = wte[inputs] + wpe[range(len(inputs))]  # 输入形状从 [n_seq] 变为 [n_seq, n_embd]
-		
+    
     # 2. 通过 Transformer 解码器堆栈
     # 通过 n 层 Transformer 块的前向传播：依次通过每个 Transformer 块、每个块保持嵌入维度不变
     for block in blocks:
@@ -986,7 +986,7 @@ x = wte[inputs] + wpe[range(len(inputs))]  # [n_seq] -> [n_seq, n_embd]
 ```python
 # 通过 n_layer 个 Transformer 解码器块的前向传播
 for block in blocks: # blocks是一个包含 n_layer 个 Transformer 块参数的列表
-  	# 每个 block 包含注意力机制和前馈网络的参数
+    # 每个 block 包含注意力机制和前馈网络的参数
     # n_head 参数控制多头注意力机制中的头数
     x = transformer_block(x, **block, n_head=n_head)  # [n_seq, n_embd] -> [n_seq, n_embd]
 ```
@@ -1142,10 +1142,12 @@ params 字典中的 mlp 参数直接对应了 `ffn` 函数中的线性变换参�
 
 ##### 注意力(Attention)
 
-参考[示例](https://lilianweng.github.io/posts/2018-06-24-attention/)，人类的视觉注意力使我们能够聚焦于“高分辨率”的特定区域(例如黄色框中的尖耳朵)，同时以“低分辨率”感知周围的图像(例如雪景背景和服装如何)。同样，我们可以用一个句子或一个紧密相关的语境来解释单词之间的关系。当我们看到“eating”时，我们预计很快就会遇到一个与食物相关的词。颜色词描述的是食物，但与“eating”并不直接相关：
+参考[示例](https://lilianweng.github.io/posts/2018-06-24-attention/)，人类的视觉注意力使我们能够聚焦于“高分辨率”的特定区域(例如黄色框中的尖耳朵)，同时以“低分辨率”感知周围的图像(例如雪景背景和服装如何)。同样，我们可以用一个句子或一个紧密相关的语境来解释单词之间的关系。当我们看到“eating”时，我们预计很快就会遇到一个与食物相关的词。而颜色“green”与“eating”并不直接相关：
 
 | ![Attention? Attention! Figure 1 A Shiba Inu in a men’s outfit](./README.assets/attention_attention_1.png) | ![Attention? Attention! Figure 2 One word "attends" to other words in the same sentence differently.](./README.assets/attention_attention_2.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
+
+根据 [Attention? Attention!](https://lilianweng.github.io/posts/2018-06-24-attention/) 介绍，Seq2Seq 模型的固定长度上下文向量设计的一个关键且明显的缺点是无法记住长句子，它通常在处理完整个输入后就忘记了第一部分。注意力机制的诞生是为了帮助神经机器翻译([NMT](https://arxiv.org/pdf/1409.0473.pdf))记住较长的源语句。
 
 注意力机制允许模型关注输入序列中的特定部分，而不是平等地处理所有输入。在 Transformer 中，这使得模型能够捕捉序列中的长距离依赖关系和复杂模式。
 
@@ -1157,9 +1159,9 @@ $$
 ```python
 def attention(q, k, v):  # [n_q, d_k], [n_k, d_k], [n_k, d_v] -> [n_q, d_v]
     # 计算缩放点积注意力
-  	# q：查询矩阵(Query)，用于"询问"其他位置的信息，形状为 [n_q, d_k] ，其中 n_q 是查询序列长度， d_k 是键的维度
-		# k：键矩阵(Key)，用于"回答"是否与查询相关，形状为 [n_k, d_k] ，其中 n_k 是键序列长度
-    # v：值矩阵(Value)，包含实际要传递的信息内容，形状为 [n_k, d_v] ，其中 d_v 是值的维度
+    # q: 查询矩阵，决定"关注什么"
+    # k: 键矩阵，决定"被关注的内容"
+    # v: 值矩阵，决定"传递的信息"
     return softmax(q @ k.T / np.sqrt(q.shape[-1])) @ v
 ```
 
@@ -1172,15 +1174,15 @@ def attention(q, k, v):  # [n_q, d_k], [n_k, d_k], [n_k, d_v] -> [n_q, d_v]
 - `softmax(...)`：对缩放后的注意力分数应用 softmax 函数，得到注意力权重；
 - `... @ v`：用注意力权重对值进行加权求和，得到最终的注意力输出，形状为 [n_q, d_v]。
 
-这个 attention 函数是 Transformer 架构的核心，它通过计算查询与键的相似度，并用这些相似度对值进行加权，实现了序列中不同位置之间的信息交流，这种机制是现代大型语言模型强大能力的基础。
+这个 `attention` 函数是 Transformer 架构的核心，它通过计算查询与键的相似度，并用这些相似度对值进行加权，实现了序列中不同位置之间的信息交流，这种机制是现代大型语言模型强大能力的基础。
 
 ##### 自注意力(Self-Attention)
 
-“ The animal didn't cross the street because it was too tired”这句话里的“it”指的是什么？它指的是街道还是动物？对人类来说，这是一个简单的问题，但对算法来说却并非如此简单。当模型处理“it”这个词时，[自注意力机制](https://jalammar.github.io/illustrated-transformer/)让模型将“it”与“animal”联系起来：
+“The animal didn't cross the street because it was too tired”这句话里的“it”指的是什么？它指的是街道还是动物？对人类来说，这是一个简单的问题，但对算法来说却并非如此简单。当模型处理“it”这个词时，[自注意力机制](https://jalammar.github.io/illustrated-transformer/)让模型将“it”与“animal”联系起来：
 
 ![As we are encoding the word "it" in encoder #5 (the top encoder in the stack), part of the attention mechanism was focusing on "The Animal", and baked a part of its representation into the encoding of "it".](./README.assets/self_attention_it.png)
 
-当查询(q)、键(k)和值(v)都来自同一个源时，我们执行的是自注意力(让输入序列关注自身)：
+当查询(q)、键(k)和值(v)都来自同一个源时，我们执行的是自注意力(让输入序列关注自身)，自注意力机制的核心思想是：让序列中的每个位置都能"看到"并"关注"序列中的所有其他位置，从而动态地学习词汇之间的关联关系：
 
 ```python
 def self_attention(x): # [n_seq, n_embd] -> [n_seq, n_embd] 
@@ -1191,6 +1193,7 @@ def self_attention(x): # [n_seq, n_embd] -> [n_seq, n_embd]
 
 ```python
 def self_attention(x, w_k, w_q, w_v, w_proj): # [n_seq, n_embd] -> [n_seq, n_embd] 
+    # 通过投影矩阵让模型学习最优的 Q、K、V 表示
     # qkv投影
     q = x @ w_q # [n_seq, n_embd] @ [n_embd, n_embd] -> [n_seq, n_embd] 
     k = x @ w_k # [n_seq, n_embd] @ [n_embd, n_embd] -> [n_seq, n_embd] 
@@ -1211,6 +1214,7 @@ def self_attention(x, w_k, w_q, w_v, w_proj): # [n_seq, n_embd] -> [n_seq, n_emb
 
 ```python
 def self_attention(x, w_fc, w_proj): # [n_seq, n_embd] -> [n_seq, n_embd] 
+    # 合并 QKV 投影：4 次矩阵乘法 → 2次矩阵乘法
     # qkv投影
     x = x @ w_fc # [n_seq, n_embd] @ [n_embd, 3*n_embd] -> [n_seq, 3*n_embd] 
     
@@ -1226,13 +1230,13 @@ def self_attention(x, w_fc, w_proj): # [n_seq, n_embd] -> [n_seq, n_embd]
     return x 
 ```
 
-这更高效，因为现代加速器(GPU)可以更好地利用一个大型矩阵乘法，而不是顺序发生的 3 个单独的小矩阵乘法。
+这更高效，因为现代 GPU 可以更好地利用一个大型矩阵乘法，而不是顺序发生的 3 个单独的小矩阵乘法。
 
 最后，我们添加偏置向量以匹配 GPT-2 的实现，使用线性函数，并重命名参数以匹配我们的 params 字典：
 
 ```python
 def self_attention(x, c_attn, c_proj): # [n_seq, n_embd] -> [n_seq, n_embd] 
-    # qkv投影
+    # qkv 投影
     x = linear(x, **c_attn) # [n_seq, n_embd] -> [n_seq, 3*n_embd] 
     
     # 拆分为qkv
@@ -1248,19 +1252,38 @@ def self_attention(x, c_attn, c_proj): # [n_seq, n_embd] -> [n_seq, n_embd]
 ```
 
 ```python
+# GPT-2参数命名约定
 "attn": { 
-    "c_attn": {"b": [3*n_embd], "w": [n_embd, 3*n_embd]}, 
-    "c_proj": {"b":   [n_embd], "w": [n_embd,   n_embd]},
-},
+    "c_attn": {  # combined attention: 合并的 QKV 投影
+        "b": [3*n_embd],        # 偏置: [Q偏置|K偏置|V偏置]
+        "w": [n_embd, 3*n_embd] # 权重: [输入→Q|输入→K|输入→V]
+    }, 
+    "c_proj": { # output projection: 输出投影
+        "b": [n_embd],          # 输出偏置
+        "w": [n_embd, n_embd]   # 注意力结果→最终输出
+    },
+}
+
+# 参数量计算：
+# c_attn: (512 * 1536) + 1536 = 787,968 + 1536 = 789,504
+# c_proj: (512 * 512) + 512 = 262,144 + 512 = 262,656
+# 总计: 1,052,160 参数
 ```
 
 这种实现方式既高效又符合 GPT-2 的原始设计，通过合并矩阵乘法和添加适当的偏置，优化了计算过程。
 
 ##### 因果(Causal)
 
-我们当前的自注意力设置存在一个问题：输入可以"看到"未来。例如，如果我们的输入是["not", "all", "heroes", "wear", "capes"]，在自注意力计算中，我们允许"wear"看到"capes"。这意味着"wear"的输出概率会有偏差，因为模型已经知道正确答案是"capes"。这不好，因为我们的模型只会学习到输入 i+1 的正确答案可以直接从输入 i+1 获取。
+我们当前的自注意力设置存在一个问题：输入可以"看到"未来。例如，如果我们的输入是["not", "all", "heroes", "wear", "capes"]，在自注意力计算中，我们允许"wear"看到"capes"。这意味着"wear"的输出概率会有偏差，因为模型已经知道正确答案是"capes"。
 
-为了防止这种情况，我们需要修改注意力矩阵，使输入无法看到未来。例如，假设我们的注意力矩阵如下：
+因果(Causal)指的是严格的时间顺序约束：原因必须在结果之前发生。在语言模型中，这意味着：
+
+1. 位置 i 的词只能依赖位置 ≤ i 的词；
+2. 未来的信息不能影响当前的预测；
+
+这确保了模型学习真正的语言规律，而非简单的"作弊"。
+
+为了防止这种情况，我们需要修改注意力矩阵，使输入无法看到未来。例如，假设我们的注意力矩阵如下，其中注意力权重矩阵 A[i,j] 表示位置 i 对位置 j 的关注度：
 
 ```python
        not    all    heroes wear   capes 
@@ -1293,23 +1316,23 @@ heroes 0.156  0.453  0.028  0.     0.
  capes 0.089  0.290  0.240  0.228  0.153 
 ```
 
-我们称这为掩码(Masking)。
+我们称这为**掩码**(Masking)。
 
-上述掩码方法有一个问题：我们的行不再总和为1(因为我们在 softmax 应用后将它们设置为0)。为了确保行仍然总和为1，我们需要在应用softmax之前修改注意力矩阵。这可以通过在 softmax 之前将要掩码的条目设置为 -∞ 来实现：
+上述掩码方法有一个问题：我们的行不再总和为 1(因为我们在 softmax 应用后将它们设置为 0)。为了确保行仍然总和为 1，我们需要在应用 softmax 之前修改注意力矩阵。这可以通过在 softmax 之前将要掩码的条目设置为 -∞ 来实现：
 
 ```python
 def attention(q, k, v, mask):  # [n_q, d_k], [n_k, d_k], [n_k, d_v], [n_q, n_k] -> [n_q, d_v] 
     return softmax(q @ k.T / np.sqrt(q.shape[-1]) + mask) @ v 
 ```
 
-其中mask是矩阵(对于n_seq=5)：
+其中mask是矩阵(对于 n_seq=5)：
 
 ```python
 0 -1e10 -1e10 -1e10 -1e10 
 0   0   -1e10 -1e10 -1e10 
-0   0     0   -1e10 -1e10 
+0   0     0   -1e10 -1e10
 0   0     0     0   -1e10 
-0   0     0     0     0 
+0   0     0     0     0
 ```
 
 我们使用 -1e10 而不是 -np.inf，因为 -np.inf 可能导致 NaN 值。将 mask 添加到我们的注意力矩阵而不是直接将值设置为 -1e10 是有效的，因为实际上，任何数加上 -∞ 仍然是 -∞。我们可以用 NumPy 计算掩码矩阵：` (1 - np.tri(n_seq)) * -1e10`。
@@ -1321,20 +1344,28 @@ def attention(q, k, v, mask):  # [n_q, d_k], [n_k, d_k], [n_k, d_v], [n_q, n_k] 
     return softmax(q @ k.T / np.sqrt(q.shape[-1]) + mask) @ v 
 
 def causal_self_attention(x, c_attn, c_proj): # [n_seq, n_embd] -> [n_seq, n_embd]
-    # 执行因果自注意力计算
-    # qkv投影
+    # 因果自注意力：确保每个位置只能关注之前的位置
+    # 输入：
+    # x: 输入序列 [n_seq, n_embd]
+    # c_attn: QKV投影参数 {"w": [n_embd, 3*n_embd], "b": [3*n_embd]}
+    # c_proj: 输出投影参数 {"w": [n_embd, n_embd], "b": [n_embd]}
+    # mask_value: 掩码值，默认-1e10
+    # 返回：
+    # 输出序列 [n_seq, n_embd]
+    
+    # 1. qkv 投影：将输入映射到查询、键、值空间
     x = linear(x, **c_attn) # [n_seq, n_embd] -> [n_seq, 3*n_embd] 
 
-    # 拆分为qkv
+    # 2. 拆分为 qkv：每个都是 [n_seq, n_embd]
     q, k, v = np.split(x, 3, axis=-1) # [n_seq, 3*n_embd] -> 3个 [n_seq, n_embd] 
 
-    # 因果掩码，防止未来输入被关注
+    # 3. 构造因果掩码：上三角部分设为 mask_value
     causal_mask = (1 - np.tri(x.shape[0], dtype=x.dtype)) * -1e10  # [n_seq, n_seq] 
 
-    # 执行因果自注意力
+    # 4. 计算注意力：包含因果约束
     x = attention(q, k, v, causal_mask) # [n_seq, n_embd] -> [n_seq, n_embd] 
 
-    # 输出投影
+    # 5. 输出投影：整合注意力结果
     x = linear(x, **c_proj) # [n_seq, n_embd] @ [n_embd, n_embd] = [n_seq, n_embd] 
 
     return x
@@ -1342,31 +1373,52 @@ def causal_self_attention(x, c_attn, c_proj): # [n_seq, n_embd] -> [n_seq, n_emb
 
 ##### 多头(Multi-Head)
 
-多头注意力机制最早在 Attention Is All You Need论文中提出，其核心思想是：
+多头注意力机制最早在 Attention Is All You Need 论文中提出。单头注意力就像只用一只眼睛看世界，而多头注意力让模型拥有"复眼"，能够同时从多个角度理解文本。其核心思想：
 
-1. 表示子空间：不同的注意力头可以学习关注输入的不同方面，在不同的表示子空间中捕捉信息；
-2. 特征多样性：通过多个头的并行计算，模型能够同时关注不同类型的模式和关系；
-3. 集成学习：多头的结果合并相当于一种集成学习，提高了模型的鲁棒性。
+1. 表示子空间：每个注意力头在不同的特征子空间中工作，专注于不同类型的模式；
+2. 特征多样性：并行计算让模型同时捕捉多种语言现象；
+3. 集成学习：多个"专家"的意见汇总，提高决策的准确性。
+
+多头注意力的核心是将高维空间分解为多个低维子空间，以下是一个示例：
+
+```python
+# 单头注意力：在整个 d_model 维度上计算
+Attention(Q, K, V) = softmax(QK^T/√d_k)V
+# Q, K, V ∈ R^{n×d_model}
+
+# 多头注意力：分解为 h 个子空间
+head_i = Attention(QW_i^Q, KW_i^K, VW_i^V)
+# 其中 W_i^Q, W_i^K, W_i^V ∈ R^{d_model×d_k}, d_k = d_model/h
+
+# 最终输出：连接所有头的结果
+MultiHead(Q,K,V) = Concat(head_1, ..., head_h)W^O
+```
 
 我们可以通过执行 n_head 个独立的注意力计算来进一步改进我们的实现，将查询、键和值分割成多个头：
 
 ```python
 def mha(x, c_attn, c_proj, n_head):  # [n_seq, n_embd] -> [n_seq, n_embd] 
-    # 多头注意力机制实现
+    # 多头因果自注意力机制
+    # 输入：
+    # x: 输入序列 [n_seq, n_embd]
+    # c_attn: QKV投影参数 {"w": [n_embd, 3*n_embd], "b": [3*n_embd]}
+    # c_proj: 输出投影参数 {"w": [n_embd, n_embd], "b": [n_embd]}
+    # n_head: 注意力头数，必须能整除 n_embd
     
-    # qkv投影 
+    # 返回
+    # 输出序列 [n_seq, n_embd]
+    
+    # QKV 投影：生成所有头的查询、键、值
     # [n_seq, n_embd] -> [n_seq, 3*n_embd] 
     x = linear(x, **c_attn)
-
-    # 拆分为 qkv
     # [n_seq, 3*n_embd] -> 3个 [n_seq, n_embd]
     qkv = np.split(x, 3, axis=-1)
 
-    # 拆分为多头 
+    # 拆分为多头
     # 3个 [n_seq, n_embd] -> 3个 [n_head, n_seq, n_embd/n_head]
     qkv_heads = list(map(lambda x: np.split(x, n_head, axis=-1), qkv))
 
-    # 因果掩码，防止未来输入被关注 
+    # 构造因果掩码，所有头共享
     # [n_seq, n_seq] 
     causal_mask = (1 - np.tri(x.shape[0], dtype=x.dtype)) * -1e10
 
@@ -1385,9 +1437,9 @@ def mha(x, c_attn, c_proj, n_head):  # [n_seq, n_embd] -> [n_seq, n_embd]
     return x 
 ```
 
-这里添加了三个步骤：
+这里主要添加了三个步骤：
 
-1. 将q、k、v拆分为n_head个头 ：
+1. 将q、k、v拆分为 n_head 个头 ：
 
 ```python
 # 拆分为多头
@@ -1415,7 +1467,7 @@ x = np.hstack(out_heads)
 
 我们编写的代码在循环中顺序执行每个头的注意力计算(一次一个)，这不是很高效。在实践中，你会希望并行执行这些计算。为了简单起见，我们只保留这种顺序执行的方式。
 
-至此，我们终于完成了GPT的实现！现在，剩下的就是把所有内容放在一起并运行我们的代码。
+至此，我们终于完成了GPT的实现。现在，就是把所有内容放在一起并运行代码。
 
 ## 运行 GPT
 
