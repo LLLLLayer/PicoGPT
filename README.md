@@ -1,9 +1,9 @@
 # PicoGPT / 60 行 NumPy 代码实现 GPT-2
 # 项目
 
-本项目从  [jaymody/picoGPT](https://github.com/jaymody/picoGPT) 分叉而来，文章主体内容提纲翻译和整理自  [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)。此外，本文引用了来自 [Jay Alammar](https://jalammar.github.io/) 的 [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/) 等书籍、博客的部分内容。
+本项目从 [jaymody/picoGPT](https://github.com/jaymody/picoGPT) Fork 而来，文章主体内容提纲翻译和整理自 [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)。此外，本文引用了来自 [Jay Alammar](https://jalammar.github.io/) 的 [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/) 等书籍、博客的部分内容。
 
-PicoGPT 是一个使用 NumPy 的 GPT-2 的极简实现，可执行代码仅 60 行，前向传播部分代码有 40 行。结合 OpenAI 发布的经过训练的 GPT-2 模型权重，生成一些文本：
+PicoGPT 是一个使用 NumPy 的 GPT-2 的极简实现，可执行代码仅 60 行，前向传播部分代码有 40 行。结合 OpenAI 发布的经过训练的 GPT-2 模型权重，生成一些文本。本项目专注于基础概念介绍和工程实现，通过简洁的代码帮助读者理解 GPT-2 的基本架构，项目不涉及 LLM 的深层理论(如训练算法、优化策略、分布式训练等)。阅读本文：
 
 1. 本文假定读者熟悉 Python，Numpy，还有一些训练神经网络的基本经验。
 2. 此实现是以教育为目的，它故意缺少一些功能，尽可能简单的同时保持整体的完整性。
@@ -1508,3 +1508,10 @@ the most powerful machines on the planet.
    1. 分类微调：替换语言建模头为分类头，使用最后一个 token 的输出进行分类。
    2. 指令微调：在人工标记的指令-完成对上训练，提升模型的指令遵循能力和实用性。
    3. 参数高效微调(PEFT)：使用 [Adapters](https://huggingface.co/papers/1902.00751) 等方法，仅训练少量参数即可获得接近全量微调的效果。
+
+# 其他推荐内容
+
+1. [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) - Jay Alammar
+2. [Transformers (how LLMs work) explained visually | DL5](https://www.youtube.com/watch?v=wjZofJX0v4M) - 3Blue1Brown
+3. [CS224N: Natural Language Processing with Deep Learning](**https://web.stanford.edu/class/cs224n/**) - Stanford University
+4. [Transformer Explainer: LLM Transformer Model Visually IExplained](https://poloclub.github.io/transformer-explainer/) - Georgia Institute of Technology
