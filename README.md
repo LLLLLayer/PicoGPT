@@ -1,11 +1,13 @@
 # PicoGPT / 60 行 NumPy 代码实现 GPT-2
 # 项目
 
-本项目从 [jaymody/picoGPT](https://github.com/jaymody/picoGPT) Fork 而来，文章主体内容提纲翻译和整理自 [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)。此外，本文引用了来自 [Jay Alammar](https://jalammar.github.io/) 的 [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/) 等书籍、博客的部分内容。
+本项目从 [jaymody/picoGPT](https://github.com/jaymody/picoGPT) Fork 而来，文章主体内容翻译和整理自 [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)，并对部分内容做了额外补充。本文引用了来自 [Jay Alammar](https://jalammar.github.io/) 的书籍 [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/)、博客等，及与文章主题相关的其他博客、论文的部分内容，这部分内容均在引用位置进行了标注。
 
-PicoGPT 是一个使用 NumPy 的 GPT-2 的极简实现，可执行代码仅 60 行，前向传播部分代码有 40 行。结合 OpenAI 发布的经过训练的 GPT-2 模型权重，生成一些文本。本项目专注于基础概念介绍和工程实现，通过简洁的代码帮助读者理解 GPT-2 的基本架构，项目不涉及 LLM 的深层理论(如训练算法、优化策略、分布式训练等)。阅读本文：
+PicoGPT 是一个使用 NumPy 的 GPT-2 的极简实现，可执行代码仅 60 行，前向传播部分代码有 40 行。结合 OpenAI 发布的预训练 GPT-2 模型权重，生成一些文本。
 
-1. 本文假定读者熟悉 Python，Numpy，还有一些训练神经网络的基本经验。
+本项目专注于基础概念介绍和工程实现，通过简洁的代码帮助读者理解 GPT-2 的基本架构，项目不涉及 LLM 的深层理论(如训练算法、优化策略、分布式训练等)。阅读本文时：
+
+1. 本文假定读者熟悉 Python、Numpy，还有一些训练神经网络的基本经验；
 2. 此实现是以教育为目的，它故意缺少一些功能，尽可能简单的同时保持整体的完整性。
 
 ## 依赖项
@@ -1052,7 +1054,7 @@ Transformer 解码器块是 GPT-2 的基本构建单元，每个块包含两个�
 
    - 唯一允许不同位置 token 交流信息的组件、因果性质确保自回归生成、并行计算，捕获多种依赖关系。
 
-2. 位置式前馈神经网络(Position-wise feed forward neural network)。
+2. 逐位置的前馈神经网络(Position-wise Feed-Forward Network)。
 
    - 对每个位置独立进行非线性变换、两层全连接网络，中间使用 GELU 激活、增强模型的表达能力。
 
@@ -1077,29 +1079,23 @@ def transformer_block(x, mlp, attn, ln_1, ln_2, n_head):  # [n_seq, n_embd] -> [
 
 前置层归一化(Pre-Norm)相比后置归一化有显著优势，[已被证明对提升 Transformer 的性能非常重要](https://huggingface.co/papers/2002.04745)。残差连接(Residual connections，由 [ResNet](https://huggingface.co/papers/1512.03385) 推广)有几个不同的作用，如梯度流优化、解决深度退化问题等。
 
-#### 位置式前馈神经网络
+#### 逐位置的前馈神经网络
 
-一个简单的例子可以帮助我们直观理解前馈神经网络的工作原理：如果我们向语言模型输入简单的文本“The Shawshank”，期望它生成“Redemption”作为最可能的下一个词，前馈神经网络是这一信息的来源。当模型训练建模里大规模文本档案(其中包含许多"The Shawshank Redemption"的提及)时，它学习并存储了使其在这项信息。
+前馈神经网络(Feed-Forward Network，FFN)是 Transformer 架构中负责信息存储和模式学习的核心组件，进行了多头注意力矩进行升维、非线性过滤、然后再降回原来的维度。
 
-一个大语言模型不仅仅是一个大型数据库，记忆只是文本生成配方中的一个成分。模型需要使用同样的机制在数据点和更复杂的模式之间进行插值，从而能够泛化——这意味着在它过去没有见过且不在其训练数据集中的输入上表现良好。
+[Transformer Feed-Forward Layers Are Key-Value Memories](https://arxiv.org/abs/2012.14913) 中有“FFN 是一个 Key-Value 记忆网络”的结论。一个直观的解释：当我们向语言模型输入"The Shawshank"，期望它生成"Redemption"作为下一个词时，这种词汇关联知识主要存储在前馈网络的参数中。当模型在包含大量"The Shawshank Redemption"文本的语料库上训练时，前馈网络学习并编码了这种词汇共现模式。但是大语言模型不仅仅是一个巨型查找表——它需要在已见过的数据点之间进行插值和泛化，从而在未见过的输入上也能表现良好。
 
-当我们使用商业大语言模型时，我们得到的输出并不是前面提到的严格意义上的"语言模型"输出。向像 GPT-4 这样的聊天大语言模型输入"The Shawshank"可能会产生如下输出：
-
-```
-"The Shawshank Redemption"是1994年由弗兰克·达拉邦特执导的电影，改编自斯蒂芬·金创作的中篇小说"Rita Hayworth and Shawshank Redemption"...
-```
-
-这就是为什么语言模型随后要经过指令调优以及人类偏好和反馈微调训练，以匹配人们对模型应该输出什么的期望。
+> 另一个关于前馈神经网络的比喻是： 思考空间 ——Self-Attention 帮助模型正确地分配注意力，FFN 帮助模型仔细地思考，提取更加抽象的特征。注意力机制专注于在 token 层级优化权重，在 token 之间建立丰富的联系，解决了序列中的长短程依赖问题；而 FFN 专注于在特征层次优化权重，让不同特征之间相互融合，丰富局部的表现力。两者相辅相成，各自独立又互相配合。
 
 ![Hands-On Large Language Models Figure 3-13. The feedforward neural network component of a Transformer block likely does the majority of the model’s memorization and interpolation.](./README.assets/the_feedforward_neural_network_component.png)
 
-"位置式"意味着这个前馈网络独立地应用于序列中的每个位置。对于输入序列中的每个 token，都使用完全相同的前馈网络进行处理，且各个位置之间的处理是相互独立的。
+Position-wise Feed-Forward Network 是 Feed-Forward Neural Network 的一个特殊应用形式，[Attention Is All You Need](https://arxiv.org/pdf/1706.03762) 实用 Position-wise Feed-Forward Networks 作为标题。"逐位置的"意味着这个前馈网络独立地应用于序列中的每个位置。对于输入序列中的每个 token，都使用完全相同的前馈网络进行处理，且各个位置之间的处理是相互独立的。
 
-位置式前馈网络采用经典的"扩展-压缩"(Expand-and-Contract)架构，这个函数实现了一个两层的前馈神经网络：
+这个函数实现了一个两层的前馈神经网络：
 
 ```python
 def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd] 
-    # 位置式前馈神经网络
+    # 逐位置的前馈神经网络
     #
     # 1. 向上投影：扩展维度并引入非线性
     # 将输入 x 通过线性变换 linear(x, **c_fc) 映射到一个更高维度的空间
@@ -1109,16 +1105,14 @@ def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd]
     # 2. 向下投影：将维度压缩回原始大小
     # 将激活后的结果 a 通过另一个线性变换 linear(a, **c_proj) 映射回原始维度
     # 输出维度从 [n_seq, 4*n_embd] 变回 [n_seq, n_embd]
+    # Position-wise 体现：linear() 函数对输入张量 x 的 每一行 （每个位置）独立应用相同的线性变换
     x = linear(a, **c_proj)
     return x
 ```
 
 这个 `ffn` 函数实现了 Transformer 架构中的位置式前馈神经网络，它通过先扩展维度、应用非线性激活函数，然后再压缩回原始维度的方式，增强了模型的表达能力。虽然结构简单，但它是 Transformer 模型中不可或缺的组成部分。
 
-> 在 Transformer 架构中，前馈网络通常将维度扩展到原来的 4 倍，这是一种经验性的设计选择。
->
-
-回忆一下我们的 `params` 字典，我们的 `mlp` 参数如下：
+前馈网络通常将维度扩展到原来的 4 倍，回忆一下我们的 `params` 字典，我们的 `mlp` 参数如下：
 
 ```python
 "mlp": {
@@ -1134,7 +1128,7 @@ def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd]
 | c_proj | w      | [4*n_embd, n_embd] | 向下投影权重矩阵 |
 | c_proj | b      | [n_embd]           | 向下投影偏置向量 |
 
-params 字典中的 mlp 参数直接对应了 `ffn` 函数中的线性变换参数，它们共同实现了 Transformer 架构中的位置式前馈神经网络组件。
+`params` 字典中的 mlp 参数直接对应了 `ffn` 函数中的线性变换参数，它们共同实现了 Transformer 架构中的位置式前馈神经网络组件。
 
 #### 多头因果自注意力机制
 
