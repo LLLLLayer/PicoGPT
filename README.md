@@ -1,7 +1,7 @@
 # PicoGPT / 60 行 NumPy 代码实现 GPT-2
 # 项目
 
-本项目从 [jaymody/picoGPT](https://github.com/jaymody/picoGPT) Fork 而来，文章主体内容翻译和整理自 [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)，并对部分内容做了额外补充。本文引用了来自 [Jay Alammar](https://jalammar.github.io/) 的书籍 [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/)、博客等，及与文章主题相关的其他博客、论文的部分内容，这部分内容均在引用位置进行了标注。
+本项目从 [jaymody/picoGPT](https://github.com/jaymody/picoGPT) Fork 而来，文章主体内容翻译和整理自 [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)，并对部分内容做了额外补充，内容将会在 Github [PicoGPT](https://github.com/LLLLLayer/PicoGPT) 持续迭代完善。本文引用了来自 [Jay Alammar](https://jalammar.github.io/) 的书籍 [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/)、博客等，及与文章主题相关的其他博客、论文的部分内容，这部分内容均在引用位置进行了标注。
 
 PicoGPT 是一个使用 NumPy 的 GPT-2 的极简实现，可执行代码仅 60 行，前向传播部分代码有 40 行。结合 OpenAI 发布的预训练 GPT-2 模型权重，生成一些文本。
 
@@ -1399,26 +1399,11 @@ def causal_self_attention(x, c_attn, c_proj): # [n_seq, n_embd] -> [n_seq, n_emb
 
 ##### 多头(Multi-Head)
 
-多头注意力机制最早在 Attention Is All You Need 论文中提出。单头注意力就像只用一只眼睛看世界，而多头注意力让模型拥有"复眼"，能够同时从多个角度理解文本。其核心思想：
+想象一下阅读理解：单头注意力 就像只用一种思路理解文章，可能会遗漏重要信息；多头注意力就像同时用多种角度分析文章，比如语法角度、语义角度、情感角度等。若把多头注意力想象成一个 专家团队，其核心思想：每个专家负责不同的任务，最后把所有专家的意见综合起来。
 
-1. 表示子空间：每个注意力头在不同的特征子空间中工作，专注于不同类型的模式；
-2. 特征多样性：并行计算让模型同时捕捉多种语言现象；
-3. 集成学习：多个"专家"的意见汇总，提高决策的准确性。
+![Hands-On Large Language Models Figure 3-26. Attention is conducted using matrices of queries, keys, and values. In multi-head attention, each head has a distinct version of each of these matrices.](./README.assets/in_multi_head_attention.png)
 
-多头注意力的核心是将高维空间分解为多个低维子空间，以下是一个示例：
-
-```python
-# 单头注意力：在整个 d_model 维度上计算
-Attention(Q, K, V) = softmax(QK^T/√d_k)V
-# Q, K, V ∈ R^{n×d_model}
-
-# 多头注意力：分解为 h 个子空间
-head_i = Attention(QW_i^Q, KW_i^K, VW_i^V)
-# 其中 W_i^Q, W_i^K, W_i^V ∈ R^{d_model×d_k}, d_k = d_model/h
-
-# 最终输出：连接所有头的结果
-MultiHead(Q,K,V) = Concat(head_1, ..., head_h)W^O
-```
+多头注意力的核心是将高维空间分解为多个低维子空间。
 
 我们可以通过执行 n_head 个独立的注意力计算来进一步改进我们的实现，将查询、键和值分割成多个头：
 
@@ -1439,11 +1424,11 @@ def mha(x, c_attn, c_proj, n_head):  # [n_seq, n_embd] -> [n_seq, n_embd]
     x = linear(x, **c_attn)
     # [n_seq, 3*n_embd] -> 3个 [n_seq, n_embd]
     qkv = np.split(x, 3, axis=-1)
-
+    
     # 拆分为多头
     # 3个 [n_seq, n_embd] -> 3个 [n_head, n_seq, n_embd/n_head]
     qkv_heads = list(map(lambda x: np.split(x, n_head, axis=-1), qkv))
-
+    
     # 构造因果掩码，所有头共享
     # [n_seq, n_seq] 
     causal_mask = (1 - np.tri(x.shape[0], dtype=x.dtype)) * -1e10
@@ -1451,15 +1436,15 @@ def mha(x, c_attn, c_proj, n_head):  # [n_seq, n_embd] -> [n_seq, n_embd]
     # 对每个头执行注意力计算
     # -> [n_head, n_seq, n_embd/n_head] 
     out_heads = [attention(q, k, v, causal_mask) for q, k, v in zip(*qkv_heads)]
-
+    
     # 合并多头结果 
     # [n_head, n_seq, n_embd/n_head] -> [n_seq, n_embd] 
     x = np.hstack(out_heads)
-
+    
     # 输出投影
     # [n_seq, n_embd] -> [n_seq, n_embd] 
     x = linear(x, **c_proj)
-
+    
     return x 
 ```
 
@@ -1469,8 +1454,14 @@ def mha(x, c_attn, c_proj, n_head):  # [n_seq, n_embd] -> [n_seq, n_embd]
 
 ```python
 # 拆分为多头
-# 3个 [n_seq, n_embd] -> 3个 [n_head, n_seq, n_embd/n_head]
+# 3 个 [n_seq, n_embd] -> 3个 [n_head, n_seq, n_embd/n_head]
+# 输入：qkv = [Q, K, V]
+# 输出：qkv_heads = [[Q1,Q2,Q3], [K1,K2,K3], [V1,V2,V3]]
 qkv_heads = list(map(lambda x: np.split(x, n_head, axis=-1), qkv))
+# qkv 是一个包含3个矩阵的列表： [Q, K, V]，每个矩阵形状： [n_seq, n_embd]
+# ambda x: np.split(x, n_head, axis=-1) ：
+# 	x 代表 Q、K、V 中的每一个矩阵
+#   np.split(x, n_head, axis=-1) 在最后一个维度上分割
 ```
 
 2. 为每个头计算注意力 ：
@@ -1479,6 +1470,7 @@ qkv_heads = list(map(lambda x: np.split(x, n_head, axis=-1), qkv))
 # 对每个头执行注意力计算 
 # -> [n_head, n_seq, n_embd/n_head] 
 out_heads = [attention(q, k, v) for q, k, v in zip(*qkv_heads)]
+# 遍历每个头的 Q、K、V 组合，对每个头独立计算注意力，收集所有头的结果
 ```
 
 3. 合并每个头的输出 ：
@@ -1486,10 +1478,9 @@ out_heads = [attention(q, k, v) for q, k, v in zip(*qkv_heads)]
 ```python
 # 合并多头结果
 # [n_head, n_seq, n_embd/n_head] -> [n_seq, n_embd] 
-x = np.hstack(out_heads) 
+x = np.hstack(out_heads)
+# hstack 表示水平堆叠，在最后一个维度上连接所有矩阵
 ```
-
-注意，这将每个注意力计算的维度从 n_embd 降低到 n_embd/n_head。这是一种权衡。通过降低维度，我们的模型获得了额外的子空间来处理通过注意力建模的关系。例如，一个注意力头可能负责连接代词与代词所指的人。另一个可能负责通过句号对句子进行分组。还有一个可能只是识别哪些词是实体，哪些不是。当然，这可能只是另一个神经网络的黑盒子。
 
 我们编写的代码在循环中顺序执行每个头的注意力计算(一次一个)，这不是很高效。在实践中，你会希望并行执行这些计算。为了简单起见，我们只保留这种顺序执行的方式。
 
@@ -1515,11 +1506,11 @@ the most powerful machines on the planet.
 
 # 接下来做什么
 
-1. GPU/TPU 支持： 将 `import numpy as np` 替换为 `import jax.numpy as np` 即可获得硬件加速能力。
+1. GPU/TPU 支持： 如将 `import numpy as np` 替换为 `import jax.numpy as np` 即可获得硬件加速能力。
 
-2. 反向传播(Backpropagation)：使用 `jax.grad(loss_fn)(params)` 自动计算梯度，无需手动实现反向传播。
+2. 反向传播(Backpropagation)：如使用 `jax.grad(loss_fn)(params)` 自动计算梯度，无需手动实现反向传播。
 
-3. 批处理(Batching)：通过 `jax.vmap(gpt2, in_axes=[0, None, ...])` 实现自动批处理，提升训练效率。
+3. 批处理(Batching)：如通过 `jax.vmap(gpt2, in_axes=[0, None, ...])` 实现自动批处理，提升训练效率。
 
 4. 推理优化(Inference Optimization)：实现 KV 缓存和并行注意力头计算是最重要的性能优化，详见 [Transformer 推理优化](https://lilianweng.github.io/posts/2023-01-10-inference-optimization/)。
 
@@ -1538,6 +1529,7 @@ the most powerful machines on the planet.
 # 其他推荐内容
 
 1. [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) - Jay Alammar
-2. [Transformers (how LLMs work) explained visually | DL5](https://www.youtube.com/watch?v=wjZofJX0v4M) - 3Blue1Brown
-3. [CS224N: Natural Language Processing with Deep Learning](**https://web.stanford.edu/class/cs224n/**) - Stanford University
-4. [Transformer Explainer: LLM Transformer Model Visually IExplained](https://poloclub.github.io/transformer-explainer/) - Georgia Institute of Technology
+2. [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/) - Jay Alammar
+3. [Transformers (how LLMs work) explained visually | DL5](https://www.youtube.com/watch?v=wjZofJX0v4M) - 3Blue1Brown
+4. [CS224N: Natural Language Processing with Deep Learning](**https://web.stanford.edu/class/cs224n/**) - Stanford University
+5. [Transformer Explainer: LLM Transformer Model Visually IExplained](https://poloclub.github.io/transformer-explainer/) - Georgia Institute of Technology
