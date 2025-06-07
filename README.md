@@ -1050,7 +1050,7 @@ return x @ wte.T  # [n_seq, n_embd] -> [n_seq, n_vocab]
 
 Transformer 解码器块是 GPT-2 的基本构建单元，每个块包含两个关键子层，通过残差连接和层归一化实现信息的有效传递：
 
-1. 多头因果自注意力机制(Multi-head causal self attention)；
+1. 多头因果自注意力机制(Multi-Head Causal Self-Attention)；
 
    - 唯一允许不同位置 token 交流信息的组件、因果性质确保自回归生成、并行计算，捕获多种依赖关系。
 
@@ -1132,18 +1132,50 @@ def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd]
 
 #### 多头因果自注意力机制
 
-这一层可能是 Transformer 中最难理解的部分。让我们通过逐个分解每个词来理解"多头因果自注意力"：注意力(Attention)、自注意力(Self-Attention)、因果(Causal)、多头(Multi-Head)。
+这一层可能是 Transformer 中最难理解的部分。让我们通过逐个分解每个词来理解"多头因果自注意力"：自注意力(Self-Attention)、因果(Causal)、多头(Multi-Head)。
 
-##### 注意力(Attention)
+##### 自注意力(Self-Attention)
 
 参考[示例](https://lilianweng.github.io/posts/2018-06-24-attention/)，人类的视觉注意力使我们能够聚焦于“高分辨率”的特定区域(例如黄色框中的尖耳朵)，同时以“低分辨率”感知周围的图像(例如雪景背景和服装如何)。同样，我们可以用一个句子或一个紧密相关的语境来解释单词之间的关系。当我们看到“eating”时，我们预计很快就会遇到一个与食物相关的词。而颜色“green”与“eating”并不直接相关：
 
 | ![Attention? Attention! Figure 1 A Shiba Inu in a men’s outfit](./README.assets/attention_attention_1.png) | ![Attention? Attention! Figure 2 One word "attends" to other words in the same sentence differently.](./README.assets/attention_attention_2.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
-根据 [Attention? Attention!](https://lilianweng.github.io/posts/2018-06-24-attention/) 介绍，Seq2Seq 模型的固定长度上下文向量设计的一个关键且明显的缺点是无法记住长句子，它通常在处理完整个输入后就忘记了第一部分。注意力机制的诞生是为了帮助神经机器翻译([NMT](https://arxiv.org/pdf/1409.0473.pdf))记住较长的源语句。
+根据 [Attention? Attention!](https://lilianweng.github.io/posts/2018-06-24-attention/) 介绍，Seq2Seq 模型的固定长度上下文向量设计的一个关键且明显的缺点是无法记住长句子，它通常在处理完整个输入后就忘记了第一部分。注意力机制的诞生是为了帮助神经机器翻译([NMT](https://arxiv.org/pdf/1409.0473.pdf))记住较长的源语句。注意力机制允许模型关注输入序列中的特定部分，而不是平等地处理所有输入。在 Transformer 中，这使得模型能够捕捉序列中的长距离依赖关系和复杂模式。
 
-注意力机制允许模型关注输入序列中的特定部分，而不是平等地处理所有输入。在 Transformer 中，这使得模型能够捕捉序列中的长距离依赖关系和复杂模式。
+“The animal didn't cross the street because it was too tired” —— 这句话中的 “it” 指代什么？是动物还是街道？对人类来说，这是一个简单的问题，但对算法来说却并非易事。当模型处理 “it” 这个词时，[自注意力机制](https://jalammar.github.io/illustrated-transformer/)让模型将 “it” 与 “animal” 联系起来：
+
+![As we are encoding the word "it" in encoder #5 (the top encoder in the stack), part of the attention mechanism was focusing on "The Animal", and baked a part of its representation into the encoding of "it".](./README.assets/self_attention_it.png)
+
+以下是注意力机制的一个简化框架：一个输入序列和一个正在处理的当前位置。由于我们主要关注的是当前位置，因此图中展示了一个输入向量和一个输出向量，输出向量根据注意力机制整合了序列中先前元素的信息。
+
+| ![Hands-On Large Language Models Figure 3-15. A simplified framing of attention: an input sequence and a current position being processed. As we’re mainly concerned with this position, the figure shows an input vector and an output vector that incorporates information from the previous elements in the sequence according to the attention mechanism.](./README.assets/a_simplified_framing_of_attention.png) | ![Hands-On Large Language Models Figure 3-16. Attention is made up of two major steps: relevance scoring for each position, then a step where we combine the information based on those scores.](./README.assets/attention_is_made_up_of_two_major_steps.png) | ![Hands-On Large Language Models Figure 3-17. We get better LLMs by doing attention multiple times in parallel, increasing the model’s capacity to attend to different types of information.](./README.assets/attention_multiple_times_in_parallel.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+
+注意力机制主要涉及两个步骤：
+
+1. 对每个先前输入的 token 与当前正在处理的 token (粉色箭头所示)的相关性进行评分；
+2. 利用这些分数，我们将来自不同位置的信息组合成一个输出向量。
+
+为了赋予 Transformer 更广泛的注意力能力，注意力机制被复制并并行执行多次。每次并行的注意力应用都会被引导至一个注意力头。这提升了模型对输入序列中需要同时关注的复杂内容进行建模的能力，但我们首先关注单个注意力头。其他注意力头的计算过程相同，但各自使用各自的投影矩阵。
+
+该层的输入包括：当前位置 token 的向量表示、先前 token 的向量表示，目标是生成融合先前 token 的相关信息的当前位置的新表示。
+
+训练过程会生成三个投影矩阵：查询(Query)投影矩阵、键(Key)投影矩阵、值(Value)投影矩阵：
+
+| ![Hands-On Large Language Models Figure 3-18. Before starting the self-attention calculation, we have the inputs to the layer](./README.assets/before_the_attention_calculations_start.png) | ![Hands-On Large Language Models Figure 3-19. Attention is carried out by the interaction of the queries, keys, and values matrices. Those are produced by multiplying the layer’s inputs with the projection](./README.assets/attention_is_carried_out_by_the_interaction.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+
+注意力机制首先将输入乘以投影矩阵  `Q = X @ W_q`、 `K = X @ W_k` 、`V = X @ W_v`，从而创建三个新的矩阵：查询(Query)矩阵、键(Key)矩阵和值(Value)矩阵。这三个矩阵是输入信息在不同表示空间中的投影，有助于执行注意力机制的两个步骤：1. 相关性评分、2. 信息合并。
+
+在 Transformer 推理阶段，我们一次生成一个 token。这意味着我们一次只处理一个位置。因此，这里的注意力机制只关注这一个位置，以及如何提取来自其他位置的信息来指导这个位置。
+
+对于特定位置计算，注意力机制的相关性评分步骤是通过将当前位置的 Q 向量与 K 矩阵相乘来实现的。这将产生一个分数，表示特定位置与每个先前 token 的相关性。将其通过 softmax 运算进行归一化，使这些分数的总和为 1。
+
+现在我们有了相关性分数，我们将每个 token 关联的值(Value)向量乘以该 token 的分数。将这些得到的向量相加，就得到了此注意力机制步骤的输出。
+
+| ![Hands-On Large Language Models Figure 3-20. Scoring the relevance of previous tokens is accomplished by multiplying the query associated with the current position with the keys matrix.](./README.assets/scoring_the_relevance_of previous_tokens_is_accomplished.png) | ![Hands-On Large Language Models Figure 3-21. Attention combines the relevant information of previous positions by multiplying their relevance scores by their respective value vectors.](./README.assets/attention_combines_the_relevant_information.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 这个函数实现了缩放点积注意力机制：
 $$
@@ -1170,25 +1202,22 @@ def attention(q, k, v):  # [n_q, d_k], [n_k, d_k], [n_k, d_v] -> [n_q, d_v]
 
 这个 `attention` 函数是 Transformer 架构的核心，它通过计算查询与键的相似度，并用这些相似度对值进行加权，实现了序列中不同位置之间的信息交流，这种机制是现代大型语言模型强大能力的基础。
 
-##### 自注意力(Self-Attention)
-
-“The animal didn't cross the street because it was too tired”这句话里的“it”指的是什么？它指的是街道还是动物？对人类来说，这是一个简单的问题，但对算法来说却并非如此简单。当模型处理“it”这个词时，[自注意力机制](https://jalammar.github.io/illustrated-transformer/)让模型将“it”与“animal”联系起来：
-
-![As we are encoding the word "it" in encoder #5 (the top encoder in the stack), part of the attention mechanism was focusing on "The Animal", and baked a part of its representation into the encoding of "it".](./README.assets/self_attention_it.png)
-
-当查询(q)、键(k)和值(v)都来自同一个源时，我们执行的是自注意力(让输入序列关注自身)，自注意力机制的核心思想是：让序列中的每个位置都能"看到"并"关注"序列中的所有其他位置，从而动态地学习词汇之间的关联关系：
+当查询(Q)、键(K)和值(V)都来自同一个源时，我们执行的是自注意力(让输入序列关注自身)，自注意力机制的核心思想是：让序列中的每个位置都能“看到”并“关注”序列中的所有其他位置，从而动态地学习词汇之间的关联关系：
 
 ```python
 def self_attention(x): # [n_seq, n_embd] -> [n_seq, n_embd] 
     return attention(q=x, k=x, v=x)
 ```
 
-我们可以通过为 q、k、v 和注意力输出引入投影矩阵来增强自注意力：
+上述 `q = k = v = x` 这样做有局限性：所有的 Q、K、V 都是相同的，模型无法学习到针对不同用途的最优表示。
+
+我们可以通过为 Q、K、V 和注意力输出引入投影矩阵来增强自注意力机制：
 
 ```python
 def self_attention(x, w_k, w_q, w_v, w_proj): # [n_seq, n_embd] -> [n_seq, n_embd] 
     # 通过投影矩阵让模型学习最优的 Q、K、V 表示
-    # qkv投影
+    
+    # Q、K、V 投影
     q = x @ w_q # [n_seq, n_embd] @ [n_embd, n_embd] -> [n_seq, n_embd] 
     k = x @ w_k # [n_seq, n_embd] @ [n_embd, n_embd] -> [n_seq, n_embd] 
     v = x @ w_v # [n_seq, n_embd] @ [n_embd, n_embd] -> [n_seq, n_embd] 
@@ -1202,17 +1231,18 @@ def self_attention(x, w_k, w_q, w_v, w_proj): # [n_seq, n_embd] -> [n_seq, n_emb
     return x 
 ```
 
-这使我们的模型能够学习 q、k 和 v 的映射，以最好地帮助注意力区分输入之间的关系。
+这使我们的模型能够学习 Q、V、V 的映射，以最好地帮助注意力区分输入之间的关系。
 
-我们可以将矩阵乘法从 4 次减少到只有 2 次，方法是将 w_q、w_k 和 w_v 合并为单个矩阵 w_fc，执行投影，然后拆分结果：
+我们可以通过合并 Q、K、V 投影，将矩阵乘法从 4 次减少到 2 次( 1 次 Q、K、V 合并投影 + 1次输出投影)，将 w_q、w_k 和 w_v 合并为单个矩阵 w_fc，执行投影，然后拆分结果：
 
 ```python
 def self_attention(x, w_fc, w_proj): # [n_seq, n_embd] -> [n_seq, n_embd] 
-    # 合并 QKV 投影：4 次矩阵乘法 → 2次矩阵乘法
-    # qkv投影
+    # 合并 Q、K、V 投影：4 次矩阵乘法 → 2 次矩阵乘法
+    
+    # Q、K、V 合并投影
     x = x @ w_fc # [n_seq, n_embd] @ [n_embd, 3*n_embd] -> [n_seq, 3*n_embd] 
     
-    # 拆分为qkv
+    # 拆分为独立的 Q、K、V 矩阵
     q, k, v = np.split(x, 3, axis=-1) # [n_seq, 3*n_embd] -> 3个 [n_seq, n_embd] 
     
     # 执行自注意力
@@ -1226,14 +1256,14 @@ def self_attention(x, w_fc, w_proj): # [n_seq, n_embd] -> [n_seq, n_embd]
 
 这更高效，因为现代 GPU 可以更好地利用一个大型矩阵乘法，而不是顺序发生的 3 个单独的小矩阵乘法。
 
-最后，我们添加偏置向量以匹配 GPT-2 的实现，使用线性函数，并重命名参数以匹配我们的 params 字典：
+最后，我们添加偏置向量、使用线性函数以匹配 GPT-2 的实现，并重命名参数以匹配我们的 `params` 字典：
 
 ```python
 def self_attention(x, c_attn, c_proj): # [n_seq, n_embd] -> [n_seq, n_embd] 
-    # qkv 投影
+    # Q、K、V 投影
     x = linear(x, **c_attn) # [n_seq, n_embd] -> [n_seq, 3*n_embd] 
     
-    # 拆分为qkv
+    # 拆分为独立的 Q、K、V 矩阵
     q, k, v = np.split(x, 3, axis=-1) # [n_seq, 3*n_embd] -> 3个 [n_seq, n_embd] 
     
     # 执行自注意力
@@ -1248,13 +1278,13 @@ def self_attention(x, c_attn, c_proj): # [n_seq, n_embd] -> [n_seq, n_embd]
 ```python
 # GPT-2参数命名约定
 "attn": { 
-    "c_attn": {  # combined attention: 合并的 QKV 投影
+    "c_attn": {  # Combined attention: 合并的 QKV 投影
         "b": [3*n_embd],        # 偏置: [Q偏置|K偏置|V偏置]
         "w": [n_embd, 3*n_embd] # 权重: [输入→Q|输入→K|输入→V]
     }, 
-    "c_proj": { # output projection: 输出投影
+    "c_proj": { # Combined/Output projection: 输出投影
         "b": [n_embd],          # 输出偏置
-        "w": [n_embd, n_embd]   # 注意力结果→最终输出
+        "w": [n_embd, n_embd]   # 输出权重
     },
 }
 
@@ -1310,7 +1340,9 @@ heroes 0.156  0.453  0.028  0.     0.
  capes 0.089  0.290  0.240  0.228  0.153 
 ```
 
-我们称这为**掩码**(Masking)。
+我们称这为**掩码**(Masking)：
+
+![Hands-On Large Language Models Figure 3-24. Attention figures show which token is being processed, and which previous tokens an attention mechanism allows it to attend to.](./README.assets/attention_figures_show_which_token_is_being_processed.png)
 
 上述掩码方法有一个问题：我们的行不再总和为 1(因为我们在 softmax 应用后将它们设置为 0)。为了确保行仍然总和为 1，我们需要在应用 softmax 之前修改注意力矩阵。这可以通过在 softmax 之前将要掩码的条目设置为 -∞ 来实现：
 
