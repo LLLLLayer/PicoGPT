@@ -52,7 +52,7 @@ Transformer 最早在 2017 年发表的著名论文 [Attention Is All You Need](
 | ![Hands-On Large Language Models Figure 1-25. GPT models quickly grew in size with each iteration.](./README.assets/gpt_models_quickly_grew_in_size_with_each_iteration.png) | ![Hands-On Large Language Models Figure 1-28. A comprehensive view into the Year of Generative AI.](./README.assets/the_year_of_generative_ai.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
-## 输入和输入
+## 输入和输出
 
 LLM 接收 Prompt 并响应，GPT 的函数签名类似这样：
 
@@ -999,10 +999,10 @@ for block in blocks: # blocks是一个包含 n_layer 个 Transformer 块参数�
 
 每个 Transformer 块包含四个关键组件：
 
-1. 多头自注意力机制 ：捕捉序列中不同位置之间的依赖关系；
-2. 前馈神经网络 ：对每个位置独立进行非线性变换；
-3. 残差连接 ：缓解梯度消失问题，促进信息流动；
-4. 层归一化 ：稳定训练过程，加速收敛。
+1. 多头自注意力机制：捕捉序列中不同位置之间的依赖关系；
+2. 前馈神经网络：对每个位置独立进行非线性变换；
+3. 残差连接：缓解梯度消失问题，促进信息流动；
+4. 层归一化：稳定训练过程，加速收敛。
 
 堆叠更多的 Transformer 块(增加 n_layer 的值)可以：增强模型的表达能力、使模型能够学习更复杂的模式和关系、提高模型处理长距离依赖的能力。随着深度(层数)和宽度(嵌入维度)的增加，模型的参数数量和计算复杂度也会显著增加。这就是为什么大型语言模型需要强大的计算资源进行训练和推理的原因。
 
@@ -1105,7 +1105,7 @@ def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd]
     # 2. 向下投影：将维度压缩回原始大小
     # 将激活后的结果 a 通过另一个线性变换 linear(a, **c_proj) 映射回原始维度
     # 输出维度从 [n_seq, 4*n_embd] 变回 [n_seq, n_embd]
-    # Position-wise 体现：linear() 函数对输入张量 x 的 每一行 （每个位置）独立应用相同的线性变换
+    # Position-wise 体现：linear() 函数对输入张量 x 的 每一行(每个位置)独立应用相同的线性变换
     x = linear(a, **c_proj)
     return x
 ```
@@ -1166,11 +1166,11 @@ def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd]
 | ![Hands-On Large Language Models Figure 3-18. Before starting the self-attention calculation, we have the inputs to the layer](./README.assets/before_the_attention_calculations_start.png) | ![Hands-On Large Language Models Figure 3-19. Attention is carried out by the interaction of the queries, keys, and values matrices. Those are produced by multiplying the layer’s inputs with the projection](./README.assets/attention_is_carried_out_by_the_interaction.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
-注意力机制首先将输入乘以投影矩阵  `Q = X @ W_q`、 `K = X @ W_k` 、`V = X @ W_v`，从而创建三个新的矩阵：查询(Query)矩阵、键(Key)矩阵和值(Value)矩阵。这三个矩阵是输入信息在不同表示空间中的投影，有助于执行注意力机制的两个步骤：1. 相关性评分、2. 信息合并。
+注意力机制首先将输入乘以投影矩阵 `Q = X @ W_q`、 `K = X @ W_k` 、`V = X @ W_v`，从而创建三个新的矩阵：查询(Query)矩阵、键(Key)矩阵和值(Value)矩阵。这三个矩阵是输入信息在不同表示空间中的投影，有助于执行注意力机制的两个步骤：1. 相关性评分、2. 信息合并。
 
 在 Transformer 推理阶段，我们一次生成一个 token。这意味着我们一次只处理一个位置。因此，这里的注意力机制只关注这一个位置，以及如何提取来自其他位置的信息来指导这个位置。
 
-对于特定位置计算，注意力机制的相关性评分步骤是通过将当前位置的 Q 向量与 K 矩阵相乘来实现的。这将产生一个分数，表示特定位置与每个先前 token 的相关性。将其通过 softmax 运算进行归一化，使这些分数的总和为 1。
+对于特定位置计算，注意力机制的相关性评分步骤是通过将当前位置的 Q 向量与 K 矩阵的转置相乘来实现的。这将产生一个分数，表示特定位置与每个先前 token 的相关性。将其通过 softmax 运算进行归一化，使这些分数的总和为 1。
 
 现在我们有了相关性分数，我们将每个 token 关联的值(Value)向量乘以该 token 的分数。将这些得到的向量相加，就得到了此注意力机制步骤的输出。
 
@@ -1191,7 +1191,7 @@ def attention(q, k, v):  # [n_q, d_k], [n_k, d_k], [n_k, d_v] -> [n_q, d_v]
     return softmax(q @ k.T / np.sqrt(q.shape[-1])) @ v
 ```
 
-> Q、K、V 是通过将输入序列的每个位置的嵌入向量，分别通过三个不同的线性投影(权重矩阵)变换得到的，这些投影矩阵是模型训练过程中学习到的参数。
+> Q、K、V 是通过将输入序列的每个位置的嵌入向量，分别与三个不同的线性投影矩阵相乘得到的，这些投影矩阵是模型训练过程中学习到的参数。
 
 计算步骤 ：
 
@@ -1399,7 +1399,7 @@ def causal_self_attention(x, c_attn, c_proj): # [n_seq, n_embd] -> [n_seq, n_emb
 
 ##### 多头(Multi-Head)
 
-想象一下阅读理解：单头注意力 就像只用一种思路理解文章，可能会遗漏重要信息；多头注意力就像同时用多种角度分析文章，比如语法角度、语义角度、情感角度等。若把多头注意力想象成一个 专家团队，其核心思想：每个专家负责不同的任务，最后把所有专家的意见综合起来。
+想象一下阅读理解：单头注意力就像只用一种思路理解文章，可能会遗漏重要信息；多头注意力就像同时用多种角度分析文章，比如语法角度、语义角度、情感角度等。若把多头注意力想象成一个专家团队，其核心思想：每个专家负责不同的任务，最后把所有专家的意见综合起来。
 
 ![Hands-On Large Language Models Figure 3-26. Attention is conducted using matrices of queries, keys, and values. In multi-head attention, each head has a distinct version of each of these matrices.](./README.assets/in_multi_head_attention.png)
 
