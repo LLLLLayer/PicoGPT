@@ -1,21 +1,23 @@
 # PicoGPT / 60 行 NumPy 代码实现 GPT-2
 # 项目
 
-本项目从 [jaymody/picoGPT](https://github.com/jaymody/picoGPT) Fork 而来，文章主体内容翻译和整理自 [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)，并对部分内容做了额外补充，内容将会在 Github [PicoGPT](https://github.com/LLLLLayer/PicoGPT) 持续迭代完善。本文引用了来自 [Jay Alammar](https://jalammar.github.io/) 的书籍 [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/)、博客等，及与文章主题相关的其他博客、论文的部分内容，这部分内容均在引用位置进行了标注。
+本项目从 [jaymody/picoGPT](https://github.com/jaymody/picoGPT) Fork 而来，文章主体内容翻译和整理自 [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)，并对部分内容做了额外补充，内容也将在 [PicoGPT](https://github.com/LLLLLayer/PicoGPT) 持续迭代完善。文中引用了 [Jay Alammar](https://jalammar.github.io/) 的书籍 [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/)、博客等，及其他与文章主题相关的文章、论文的部分内容，这部分内容均在引用位置进行了标注。
 
-PicoGPT 是一个使用 NumPy 的 GPT-2 的极简实现，可执行代码仅 60 行，前向传播部分代码有 40 行。结合 OpenAI 发布的预训练 GPT-2 模型权重，生成一些文本。
+PicoGPT 是一个基于 NumPy 的 GPT-2 极简实现，其核心逻辑代码仅 60 行，其中前向传播代码 40 行。通过加载 OpenAI 发布的预训练 GPT-2 模型权重，本项目可以实现文本生成功能。
 
-本项目专注于基础概念介绍和工程实现，通过简洁的代码帮助读者理解 GPT-2 的基本架构，项目不涉及 LLM 的深层理论(如训练算法、优化策略、分布式训练等)。阅读本文时：
+本项目侧重于 GPT-2 基础概念的介绍和代码实现，旨在通过简洁的代码帮助读者理解其核心架构。因此，项目不深入探讨 LLM 的复杂理论(如训练算法、优化策略、分布式训练等)。
 
-1. 本文假定读者熟悉 Python、Numpy，还有一些训练神经网络的基本经验；
-2. 此实现是以教育为目的，它故意缺少一些功能，尽可能简单的同时保持整体的完整性。
+阅读本文档，我们假定读者：
+
+1. 熟悉 Python、Numpy，还有一些训练神经网络的基础；
+2. 理解此实现以教学为主要目的，为保持简洁性，代码有意省略了部分非核心功能，而在整体架构上力求完整。
 
 ## 依赖项
 
 ```bash
 pip install -r requirements.txt
 ```
-已在 `Python 3.9.10` 上测试。
+本项目已在 Python 3.9.10 环境下测试通过。
 
 ## 使用
 
@@ -33,18 +35,18 @@ python gpt2.py "Alan Turing theorized that computers would one day become"
 
 # GPT 是什么?
 
-**GPT(Generative Pre-trained Transformer)**，是一类基于 Transformer 的神经网络架构：
+**GPT**(Generative Pre-trained Transformer)，是一类基于 Transformer 的神经网络架构：
 
-- **生成式(Generative)**：GPT 可以生成文本；
-- **预训练(Pre-trained)**：GPT 基于来自于书本、互联网等的海量文本进行训练；
-- **Transformer**：GPT是一个只用“解码器”(decoder-only)的 Transformer 神经网络结构。
+- **生成式**(Generative)：GPT 可以生成文本；
+- **预训练**(Pre-trained)：GPT 基于来自于书本、互联网等的海量文本进行训练；
+- **Transformer**：GPT 采用的是仅包含解码器(decoder-only)部分的 Transformer 神经网络结构。
 
-Transformer 最早在 2017 年发表的著名论文 [Attention Is All You Need](https://huggingface.co/papers/1706.03762) 中得到探讨。它完全基于注意力机制，在 Transformer 中，编码和解码组件堆叠在一起。编码器负责理解输入，解码器负责生成输出。GPT 只保留了解码器部分，所以叫“decoder-only”。
+Transformer 最早在 2017 年发表的著名论文 [Attention Is All You Need](https://huggingface.co/papers/1706.03762) 中得到探讨，该论文首次提出了 Transformer 架构，为后续的 GPT 等模型奠定了基础。它完全基于注意力机制，在 Transformer 中，编码和解码组件堆叠在一起。编码器负责理解输入，解码器负责生成输出。GPT 只保留了解码器部分，所以叫“decoder-only”。
 
-| ![Hands-On Large Language Models Figure 1-16. The Transformer is a combination of stacked encoder and decoder blocks.](./README.assets/the_transformer.png) | ![![Hands-On Large Language Models Figure 1-1. A peek into the history of Language AI.](./README.assets/a_peek_into_the_history_of_language_ai.png)](./README.assets/the_architecture_of_a_gpt_1.png) |
+| ![Hands-On Large Language Models Figure 1-16. The Transformer is a combination of stacked encoder and decoder blocks.](./README.assets/the_transformer.png) | ![![Hands-On Large Language Models Figure 1-1. A peek into the history of Language AI.](./README.assets/the_architecture_of_a_gpt_1.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
-像 OpenAI 的 GPT-3 这样的大型语言模型 (LLM, Large Language Models)的的底层都是 GPT。它们的特殊之处在于：经过大量数据的训练、规模非常大，如：
+像 OpenAI 的 GPT-3 这样的大型语言模型 (Large Language Models，LLM)底层均采用 GPT 架构。其特点在于经过大量数据训练，模型规模极大，例如：
 
 1. [OpenAI GPT-3](https://huggingface.co/papers/2005.14165)：参数量约 1750 亿(175B)，训练数据约 3000 亿个 token，数据量 45TB 左右；
 2. [Google LaMDA](https://huggingface.co/papers/2201.08239)：LaMDA 1 代约 1370 亿(137B)，在预训练阶段收集并创建了一个具有 1.56T 单词的数据集。
@@ -56,17 +58,18 @@ Transformer 最早在 2017 年发表的著名论文 [Attention Is All You Need](
 
 LLM 接收 Prompt 并响应，GPT 的函数签名类似这样：
 
-![Hands-On Large Language Models Figure 2-2. High-level view of a language model and its input prompt](./README.assets/high_level_view_of_a_language_model_and_its_input_prompt.png)
+![Hands-On Large Language Models Figure 2-2. High-level view of a language model and its input prompt.](./README.assets/high_level_view_of_a_language_model_and_its_input_prompt.png)
 
 ```python
 def gpt(inputs: list[int]) -> list[list[float]]:
-    # 参数: 
-    # inputs 的形状是 [n_seq]，表示这是一个一维数组，长度为 n_seq
-    # 通常表示一个输入的 token ID 序列，即一句话中的各个 token 对应的 ID 序列
-    # 返回:
-    # output 的形状是 [n_seq, n_vocab]，表示这是一个二维数组，有 n_seq 行、 n_vocab 列
-    # 每行表示对应位置 token 的下一个 token 的概率分布，其中 n_vocab 是词表大小，每个元素表示对应词的预测概率
-    output = # 神经网络的神奇魔法(前向传播计算)
+    # 参数：
+    # inputs: 长度为 n_seq 的一维数组
+    # 表示一个输入的 token ID 序列，即一句话中的各个 token 对应的 ID 序列
+    # 返回：
+    # output: 形状为 [n_seq, n_vocab] 的二维数组
+    # 每行表示对应位置 token 的下一个 token 的概率分布
+    # 其中 n_vocab 是词表大小，每个元素表示对应词的预测概率
+    output = # 神经网络的前向传播计算
     return output
 ```
 
@@ -101,7 +104,7 @@ tokens = [tokenizer.vocab[i] for i in ids] # tokens = ["not", "all", "heroes", "
 text = tokenizer.decode(ids) # text = "not all heroes wear"
 ```
 
-简单说：我们有一个字符串、我们使用分词器将其拆解为小片段—— token、我们使用词汇表将这些 token 映射为整数。
+简单来说：首先将字符串用分词器拆解为 token，再通过词汇表将每个 token 映射为整数 ID。
 
 在实际中，我们会使用一些更高级的分词器，如 [Byte-Pair Encoding](https://huggingface.co/learn/llm-course/chapter6/5) 或者 [WordPiece](https://huggingface.co/learn/llm-course/chapter6/6?fw=pt) 等，其原理是一致的：
 
@@ -111,7 +114,7 @@ text = tokenizer.decode(ids) # text = "not all heroes wear"
 
 GPT 输出是一个二维数组，其中 `output[i][j]` 表示模型的预测概率，这个概率代表了词汇表中位于 `vocab[j]` 的 token 是下一个 token `inputs[i+1]` 的概率，如：
 
-| ![Hands-On Large Language Models  Figure 3-7. The tokens with the highest probability after the model’s forward pass. Our decoding strategy decides which of the tokens to output by sampling based on the probabilities.](./README.assets/the_tokens_with_the_highest_probability.png) | ![Hands-On Large Language Models Figure 2-5. Tokenizers are also used to process the output of the model by converting the output token ID into the word or token associated with that ID](./README.assets/tokenizers_are_also_used_to_process_the_output_of_the_model.png) |
+| ![Hands-On Large Language Models  Figure 3-7. The tokens with the highest probability after the model’s forward pass. Our decoding strategy decides which of the tokens to output by sampling based on the probabilities.](./README.assets/the_tokens_with_the_highest_probability.png) | ![Hands-On Large Language Models Figure 2-5. Tokenizers are also used to process the output of the model by converting the output token ID into the word or token associated with that ID.](./README.assets/tokenizers_are_also_used_to_process_the_output_of_the_model.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 ```python
@@ -144,7 +147,7 @@ next_token = vocab[next_token_id]     # next_token = "capes"
 
 将具有最高概率的 token 作为结果，叫做[**贪婪解码**(Greedy decoding)](https://docs.cohere.com/docs/controlling-generation-with-top-k-top-p#1-pick-the-top-token-greedy-decoding)或者**贪婪采样**(Greedy sampling)。
 
-预测序列中下一个最合理单词的任务被称为**语言建模**(Language modeling)，我们可以把 GPT 称为一种**语言模型**(Language model)。
+预测序列中下一个最合理 token 的任务被称为**语言建模**(Language modeling)，我们可以把 GPT 称为一种**语言模型**(Language model)。
 
 ## 生成文本
 
@@ -171,7 +174,7 @@ output_tokens = [vocab[i] for i in output_ids] # "heroes" "wear" "capes"
 
 ### 采样(Sampling)
 
-我们在选择 token 时可以引入一些**随机性**(Stochasticity)：
+我们在选择 token 时可以引入一些**随机性**(Stochasticity)，通过采样而非总是选择最大概率的 token：
 
 ```python
 inputs = [1, 0, 2, 4] # "not" "all" "heroes" "wear" 的 token ID
@@ -187,9 +190,9 @@ np.random.choice(np.arange(vocab_size), p=output[-1]) # pants
 
 结合 [top-k](https://docs.cohere.ai/docs/controlling-generation-with-top-k-top-p#2-pick-from-amongst-the-top-tokens-top-k)、[top-p](https://docs.cohere.ai/docs/controlling-generation-with-top-k-top-p#3-pick-from-amongst-the-top-tokens-whose-probabilities-add-up-to-15-top-p) 和 [temperature](https://docs.cohere.ai/docs/temperature) 等采样策略，可以显著提升生成文本的质量和多样性。这些技术还引入了一些**超参数**(Hyperparameter)，这些参数需要在训练前由开发者手动设定，而非通过模型学习获得。通过调整这些超参数，我们可以控制模型的生成行为，实现从保守到创造性的不同生成风格。
 
-> 1. Top-k ：在每一步生成中，仅从概率最高的k个词汇中采样，有效平衡了确定性和多样性，防止模型总是选择最高概率的词。
+> 1. Top-k ：在每一步生成中，仅从概率最高的 k 个词汇中采样，有效平衡了确定性和多样性，防止模型总是选择最高概率的词。
 > 2. Top-p ：动态选择累积概率达到阈值 p 的最小词汇集合进行采样，相比 top-k 更灵活，能根据概率分布的形状自适应调整候选集大小。
-> 3. Temperature ：通过缩放 logits(logits/temperature) 调整概率分布的锐度，较低的温度(如 0.7)使分布更集中，生成更可预测；较高的温度(如 1.3)使分布更平坦，生成更多样化但可能不太连贯。
+> 3. Temperature ：通过缩放未归一化得分(Logits) `logits/temperature` 调整概率分布的锐度，较低的温度(如 0.7)使分布更集中，生成更可预测；较高的温度(如 1.3)使分布更平坦，生成更多样化但可能不太连贯。
 >
 > “I am driving a…” Temperature 示例：
 >
@@ -197,18 +200,18 @@ np.random.choice(np.arange(vocab_size), p=output[-1]) # pants
 
 ## 训练(Training)
 
-我们与训练其它神经网络一样，**损失函数**(Loss Function)是衡量模型预测结果与真实结果之间差距的一个函数，针对特定的损失函数，使用[**梯度下降**(Gradient descent optimization algorithms)](https://huggingface.co/papers/1609.04747)训练 GPT，该方法计算损失函数相对于模型参数的梯度(导数)，然后沿着能够减小损失的方向调整参数。
+**损失函数**(Loss Function)是衡量模型预测结果与真实结果之间差距的一个函数。训练 GPT 与其它神经网络类似，针对特定的损失函数，使用[**梯度下降**(Gradient descent optimization algorithms)](https://huggingface.co/papers/1609.04747)训练模型，该方法计算损失函数相对于模型参数的梯度(导数)，然后沿着能够减小损失的方向调整参数。
 
 ![Hands-On Large Language Models Figure 10-10. Multiple negatives ranking loss aims to minimize the distance between related pairs of text, such as questions and answers, and maximize the distance between unrelated pairs, such as questions and unrelated answers.](./README.assets/loss_aims.png)
 
-对于GPT，我们使用**语言建模任务**(Language Modeling)——给定一段文本的前面部分，预测下一个最有可能出现的 token 的任务的[**交叉熵损失**(Cross Entropy Loss)](https://www.youtube.com/watch?v=ErfnhcEV1O8)损失函数：
+对于 GPT，我们使用**语言建模任务**(Language Modeling) —— 即给定一段文本的前面部分，预测下一个最有可能出现的 token。该任务通常使用[**交叉熵损失**(Cross Entropy Loss)](https://www.youtube.com/watch?v=ErfnhcEV1O8)作为损失函数：
 
 > 假设有三个类别，真实标签是类别 2：
 >
-> 1. 如果模型预测概率分布为 `[0.1, 0.7, 0.2]`(正确地给了类别 2 最高概率)，损失值为 -log(0.7)≈0.36；
-> 2. 如果模型预测概率分布为 `[0.1, 0.2, 0.7]`(错误地给了类别 3 最高概率)，损失值为 -log(0.2)≈1.61；
+> 1. 如果模型预测概率分布为 `[0.1, 0.7, 0.2]`(正确地给了类别 2 最高概率)，损失值为 -log(0.7) ≈ 0.36；
+> 2. 如果模型预测概率分布为 `[0.1, 0.2, 0.7]`(错误地给了类别 3 最高概率)，损失值为 -log(0.2) ≈ 1.61。
 >
-> 显然第二种情况损失更大，这正是我们期望的——模型预测错误时应当受到更大的惩罚。
+> 显然，第二种情况损失更大，这正是我们期望的：模型预测错误时应当受到更大的惩罚。
 
 ```python
 def lm_loss(inputs: list[int], params) -> float:
@@ -219,7 +222,7 @@ def lm_loss(inputs: list[int], params) -> float:
     # 返回：
     # float: 平均交叉熵损失值
     #
-    # 构建 输入-标签 对：
+    # 构建输入-标签对：
     # 输入 x 是除最后一个 token 外的序列，标签是除第一个 token 外的序列
     # 标签 y 只是 inputs 向左移动 1 位
     # 例如：
@@ -227,7 +230,7 @@ def lm_loss(inputs: list[int], params) -> float:
     #      x = [not, all, heroes, wear]
     #      y =      [all, heroes, wear, capes]
     # 
-    # 对于长度为 N 的 inputs，我们可以构建 N-1 个"输入-标签"对
+    # 对于长度为 N 的 inputs，我们可以构建 N-1 个输入-标签对
     # 两者的形状都是 [序列中的 token 数 - 1]
     x, y = inputs[:-1], inputs[1:] 
     
@@ -236,11 +239,11 @@ def lm_loss(inputs: list[int], params) -> float:
     
     # 计算交叉熵损失：
     # -log(p(y_i))，其中 p(y_i) 是模型对真实下一个 token 的预测概率
-    # np.arange(len(output)) 生成行索引，y 提供列索引，共同定位每个位置的真实 token 概率
+    # np.arange(len(output)) 生成行索引，y 提供列索引，两者共同定位每个位置的真实 token 概率
     # np.mean(token_losses) 返回平均损失
     loss = np.mean(-np.log(output[np.arange(len(output)), y]))
     
-    # 最终得到的是一个一维数组，长度等于行数，每个元素就是模型在该位置预测真实下一个 token 的概率
+    # 最终得到的是一个一维数组，长度等于行数，每个元素是模型在该位置预测真实下一个 token 的概率
     return loss
 
 def train(texts: list[list[str]], params) -> dict:
@@ -260,7 +263,7 @@ def train(texts: list[list[str]], params) -> dict:
         loss = lm_loss(inputs, params)
         #
         # 计算梯度：
-        # 反向传播算法(Backpropagation): 根据损失函数的结果，自动计算每个参数对损失的影响，用于指导参数如何调整
+        # 反向传播算法(Backpropagation): 根据损失函数的结果，自动计算每个参数对损失的影响，用于指导参数调整
         # 通过反向传播算法计算损失对参数的梯度，即每个参数该怎么调整能让损失变小
         gradients = compute_gradients_via_backpropagation(loss, params)
         #
@@ -274,23 +277,36 @@ def train(texts: list[list[str]], params) -> dict:
 
 这就是一个极度简化但典型的神经网络训练循环：编码输入、计算损失、反向传播求梯度、用梯度下降法更新参数。不断重复这个过程，模型就会越来越“聪明”，预测能力越来越强。
 
-值得注意的是，语言模型训练不需要人工标注的数据。相反，我们利用文本数据本身的内在结构——每个 token 都可以作为其前面 tokens 的预测目标，从而自动生成无限量的"输入-目标"对。这种方法被称为[**自监督学习**(Self-supervised learning)](https://en.wikipedia.org/wiki/Self-supervised_learning)。自监督使我们能够大规模扩展训练数据。我们只需要获取尽可能多的原始文本，并将其输入到模型中即可。例如，GPT-3 使用了来自互联网和书籍的 3000 亿个文本 tokens 进行训练，以下图表来自[Language Models are Few-Shot Learners](https://huggingface.co/papers/2005.14165)：
+值得注意的是，语言模型训练不需要人工标注的数据。相反，我们利用文本数据本身的内在结构——每个 token 都可以作为其前面 tokens 的预测目标，从而自动生成大量的输入-目标对。这种方法被称为[**自监督学习**(Self-supervised learning)](https://en.wikipedia.org/wiki/Self-supervised_learning)。自监督使我们能够大规模扩展训练数据。我们只需要获取尽可能多的原始文本，并将其输入到模型中即可。例如，GPT-3 使用了来自互联网和书籍的 3000 亿个文本 tokens 进行训练，以下图表来自[Language Models are Few-Shot Learners](https://huggingface.co/papers/2005.14165)：
 
 ![Language Models are Few-Shot Learners Table 2.2: Datasets used to train GPT-3](./README.assets/datasets_used_to_train_gpt_3.png)
 
-这个自监督训练的步骤称之为**预训练**(Pre-training)，我们可以重复使用预训练模型权重来训练下游任务上的特定模型，预训练模型有时也被称为**基础模型**(Foundation models)。在下游任务上训练模型被称之为**微调**(Fine-tuning)，因为模型权重已经过预先训练以理解语言，因此它只是针对手头的特定任务进行微调。这种“在通用任务上预训练+在特定任务上微调”的策略，称之为[**迁移学习**(Transfer learning)](https://en.wikipedia.org/wiki/Transfer_learning)。
+这个自监督训练的步骤称之为**预训练**(Pre-training)，我们可以重复使用预训练模型权重来训练下游任务上的特定模型，预训练模型有时也被称为**基础模型**(Foundation models)。
 
-
+在下游任务上训练模型被称之为**微调**(Fine-tuning)，因为模型权重已经过预先训练以理解语言，因此它只是针对手头的特定任务进行微调。这种“在通用任务上预训练+在特定任务上微调”的策略，称之为[**迁移学习**(Transfer learning)](https://en.wikipedia.org/wiki/Transfer_learning)。
 
 ![Hands-On Large Language Models Figure 1-30. Compared to traditional machine learning, LLM training takes a multistep approach.](./README.assets/compared_to_traditional_machine_learning.png)
 
-> 传统的机器学习通常涉及针对特定任务(例如分类)训练模型，我们认为这是一个单步过程：![Hands-On Large Language Models Figure 1-29. Traditional machine learning involves a s](./README.assets/traditional_machine_learning_involves_a_single_step.png)
+> 传统的机器学习通常涉及针对特定任务(例如分类)训练模型，我们认为这是一个单步过程：![Hands-On Large Language Models Figure 1-29. Traditional machine learning involves a specific target task, like classification or regression.](./README.assets/traditional_machine_learning_involves_a_single_step.png)
+
+> 自回归、前向传播、反向传播的定义：
+>
+> 1. 自回归：是一种模型结构，指模型在生成序列时，每一步的输出都依赖于之前已经生成的内容。GPT 就是典型的自回归模型。
+> 1. 反向传播：是在前向传播得到输出后，根据损失函数计算误差，并将误差信息从输出层反向传递到输入层，逐层计算梯度，用于更新模型参数。
+>
+> 2. 前向传播：指神经网络从输入到输出的计算过程，即数据依次经过每一层网络，最终得到输出结果(如 logits 或概率)。
+>
+> 自回归、前向传播、反向传播的关系 ：
+>
+> 1. 自回归是模型结构和生成方式，前向/反向传播是神经网络训练和推理的基本计算过程，两者可以结合：自回归模型的每一步都用前向传播计算输出，训练时再用反向传播优化参数。
+> 1. 训练时，前向传播用于计算输出，反向传播用于根据损失调整参数。
+> 1. 推理时，每生成一个 token，都会进行一次前向传播，得到当前 token 的预测概率分布。
 
 ## 提示(Prompting)
 
-2018 年发表的 [Improving Language Understanding by Generative Pre-Training](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) 论文首次提出了GPT-1模型，介绍了一种使用 Transformer 架构的生成式预训练模型，该研究确立了如今广泛采用的两阶段训练范式：(1)在海量无标注文本上进行自监督预训练；(2)在特定任务的标注数据上进行有监督微调。验表明，拥有1.17 亿参数的 GPT-1模型经过微调后，在多种**自然语言处理**(NLP, Natural Language Processing)任务上取得了当时最先进的性能，证明了这种预训练-微调范式的有效性。
+2018 年发表的 [Improving Language Understanding by Generative Pre-Training](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) 论文首次提出了 GPT-1 模型，介绍了一种基于 Transformer 架构的生成式预训练方法，确立了如今广泛采用的两阶段训练范式：首先在大规模无标注文本上进行自监督预训练，然后在特定任务的标注数据上进行有监督微调。实验表明，拥有1.17 亿参数的 GPT-1 模型经过微调后，在多种**自然语言处理**(Natural Language Processing，NLP)任务上取得了当时最先进的性能，证明了这种预训练-微调范式的有效性。
 
-随着 2019 年 [Language Models are Unsupervised Multitask Learners ](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) GPT-2 和 [Language Models are Few-Shot Learners](https://arxiv.org/abs/2005.14165) GPT-3 论文发表，研究人员发现：当模型规模和训练数据量达到足够大时，语言模型会表现出**涌现**能力(Emergent Abilities) ——能够在没有任何参数更新的情况下执行全新任务。
+随着 2019 年 [Language Models are Unsupervised Multitask Learners ](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) GPT-2 和 [Language Models are Few-Shot Learners](https://arxiv.org/abs/2005.14165) GPT-3 论文发表，研究人员发现：当模型规模和训练数据量达到足够大时，语言模型会表现出**涌现**能力(Emergent Abilities) ，指能够在没有任何参数更新的情况下执行全新任务。
 
 这种能力通过**提示工程**(Prompting) 来激活，即通过精心设计的文本指令引导模型执行特定任务。这种新范式被称为**上下文学习**(In-context Learning)。根据提示中包含的示例数量，可分为三种模式：
 
@@ -304,7 +320,7 @@ def train(texts: list[list[str]], params) -> dict:
 
 这种基于提示的文本生成在技术上被称为**条件生成**(Conditional Generation) ——模型的输出受到输入 Prompt(条件)的约束和引导。
 
-值得注意的是，GPT 模型的应用远超传统的自然语言处理任务范畴。通过不同的提示设计，同一个模型可以：
+值得注意的是，GPT 模型的应用已远超传统 NLP 任务。通过不同的 Prompt 设计，同一模型能够：
 
 1. 执行文本摘要、翻译、问答等多种语言任务；
 
@@ -317,6 +333,8 @@ def train(texts: list[list[str]], params) -> dict:
 以下是一个包含多个组件的复杂提示示例：
 
 ![Hands-On Large Language Models Figure 6-4 Figure 6-11. An example of a complex prompt with many components.](./README.assets/an_example_of_a_complex_prompt_with_many_components.png)
+
+该图展示了一个包含多个组件的复杂 Prompt 示例。通过在输入中加入任务说明、上下文信息、示例输入输出等不同部分，可以有效引导大语言模型按照预期方式完成复杂任务。这种多组件提示设计体现了提示工程的重要性，有助于提升模型的理解能力和输出质量。
 
 # 实现 GPT
 
@@ -336,12 +354,12 @@ pip install -r requirements.txt
 | ------------------ | ------------------------------------------------------------ |
 | **`encoder.py`**   | OpenAI 的 BPE(Byte Pair Encoding)分词器实现，源自 [openai gpt-2](https://github.com/openai/gpt-2/blob/master/src/encoder.py) |
 | **`utils.py`**     | 提供下载和加载 GPT-2 模型权重、分词器和超参数的工具函数      |
-| **`gpt2.py`**      | 完整实现的 GPT-2 模型代码，包含详细注释，可直接运行          |
-| **`gpt2_pico.py`** | 与 `gpt2.py` 功能相同的精简版本，移除了注释以突显核心代码    |
+| **`gpt2.py`**      | 完整实现的 GPT-2 模型代码，包含详细注释，支持直接运行        |
+| **`gpt2_pico.py`** | 与 gpt2.py 功能相同的精简版本，移除注释以突出核心代码        |
 
-首先将 `gpt2.py` 替换为以下内容：
+请将 `gpt2.py` 文件内容替换为如下代码：
 
-> 此部分内容关注方法链路即可，可暂时忽略其中的概念，这部分内容将于后文释意。
+> 本节重点关注代码流程，相关概念将在后文详细解释。
 
 ```python
 import numpy as np
@@ -385,7 +403,7 @@ def generate(inputs, params, n_head, n_tokens_to_generate):
 # GPT-2 模型的前向传播函数
 def gpt2(inputs, wte, wpe, blocks, ln_f, n_head):
     pass
-  
+
 if __name__ == "__main__":
     import fire
     fire.Fire(main)
@@ -395,54 +413,47 @@ if __name__ == "__main__":
 
 1. `main` 函数：协调整体工作流程：初始化模型环境、输入处理、文本生成、输出处理；
 2. `generate` 函数：实现自回归生成过程，为了简洁这里将使用贪婪解码，其中 [`tqdm`](https://github.com/tqdm/tqdm) 提供进度展示，以直观地看到解码过程；
-3. `gpt2` 函数：将要实现的前向传播函数；
+3. `gpt2` 函数：待实现的前向传播函数；
 4. 命令行接口：通过 [`fire.Fire(main)`](https://github.com/google/python-fire) 将 Python 脚本转换为命令行应用，以支持 `python gpt2.py "prompt"` 调用。
 
 ## GPT 架构概览
 
-GPT 的架构是基于 [Transformer](https://huggingface.co/papers/1706.03762) 的，但与原始 Transformer 不同，GPT仅使用解码器部分，并移除 编码器-解码器 间的交叉注意力机制。这种设计使模型专注于自回归语言建模任务：
+GPT 的架构是基于 [Transformer](https://huggingface.co/papers/1706.03762) 的，但与原始 Transformer 不同，GPT 仅使用解码器部分，移除了编码器-解码器之间的交叉注意力机制，这种设计使模型专注于自回归语言建模任务。以下左图为原始 Transformer 架构，右图为 GPT 架构：
 
-| ![Attention Is All You Need Figure 1: The Transformer - model architecture](./README.assets/the_transformer_model_architecture_1.png) | ![Attention Is All You Need Figure 1: The Transformer - model architecture](./README.assets/the_transformer_model_architecture_2.png) |
+| ![Attention Is All You Need Figure 1: The Transformer - model architecture](./README.assets/the_transformer_model_architecture_1.png) | ![The GPT model architecture](./README.assets/the_transformer_model_architecture_2.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 **左图：这张图展示了原始 Transformer 模型的完整架构，包含了编码器和解码器两部分：**
 
 1. 左侧是编码器(Encoder)部分，用于处理输入序列；
 2. 右侧是解码器(Decoder)部分，用于生成输出序列；
-3. 图中的"N×"表示这些模块重复N次，形成多层结构；
+3. 图中的 N× 表示这些模块重复 N 次，形成多层结构；
 4. 底部是输入嵌入(Input Embedding)和位置编码(Positional Encoding)的组合；
 5. 中间有多头注意力(Multi-Head Attention)机制和前馈神经网络(Feed Forward)层；
-6. 每个主要组件后都有 Add & Norm 层，实现残差连接和层归一化；
-7. 解码器部分有额外的"Masked Multi-Head Attention"层，确保自回归生成过程中只能看到已生成的 tokens。
+6. 每个主要组件后都有 Add & Norm 层，实现残差连接(Residual Connection)和层归一化(Layer Normalization)；
+7. 解码器部分有额外的掩码多头注意力(Masked Multi-Head Attention)层，确保自回归生成过程中只能看到已生成的 token。
 
 **右图：展示了 GPT 模型的简化架构，与原始 Transformer 相比有以下区别：**
 
 1. GPT只使用了 Transformer 的解码器部分 ，移除了编码器-解码器间的交叉注意力机制；
-
 2. 底部是文本和位置的组合嵌入(Text + Position Embedding)；
-
 3. 中间是N个重复的 Transformer 块，每个块包含：
-   1. 多头自注意力机制(Multi-Head Casual Self Attention)，"Casual"表示它是单向的，只能看到当前及之前的 token
-   2. 层归一化(Layer Norm)；
-   3. 残差连接(+符号表示)；
-   4. 前馈神经网络(Feed Forward)；
-
+   1. 多头因果自注意力机制(Multi-Head Casual Self-Attention)，"Casual"表示它是单向的，只能看到当前及之前的 token；
+   2. 前馈神经网络(Feed Forward)；
+   3. 残差连接(+ 符号表示)、层归一化(Layer Norm)；
 4. 顶部是输出处理部分：
-   1. 层归一化；
-   2. 线性变换(Linear)；
-   3. Softmax层
-   4. 将输出转换为下一个 token 的概率分布。
+   1. 输出投影、线性变换(Linear)、Softmax 层、将输出转换为下一个 token 的概率分布。
 
 ## 分词器、模型参数与超参数
 
 ### 分词器(Tokenizer)
 
-模型不会一次性生成全部输出响应；它实际上是一次生成一个 token。同样，token 不仅是模型的输出，它们也是模型输入的方式。在将 Prompt 呈现给语言模型之前，它首先必须通过分词器进行处理。我们可以在 OpenAI 上找到 [GPT-4o 分词器的示例](https://platform.openai.com/tokenizer)：
+模型生成响应时，并非一次性输出全部内容，而是每次生成一个 token。token 既作为模型的输出，也是模型的输入单位。在将 Prompt 呈现给语言模型之前，首先必须通过分词器的处理。我们可以在 OpenAI 上找到 [GPT-4o 分词器的示例](https://platform.openai.com/tokenizer)：
 
 | ![OpenAI Platform Tokenizer Text](./README.assets/gpt_4o_tokenizer_text.png) | ![OpenAI Platform Tokenizer Token IDs](./README.assets/gpt_4o_tokenizer_token_ids.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
-`encoder` 是 GPT-2 使用的 BPE 分词器：
+回到代码中，`encoder` 是 GPT-2 使用的 BPE 分词器：
 
 ```python
 ids = encoder.encode("Not all heroes wear capes.")
@@ -460,9 +471,9 @@ print(tokens)
 
 请注意，有时 token 是单词(如 `Not`)，有时是前面有一个空格的单词(如 `Ġall`，[`Ġ`表示空格](https://github.com/karpathy/minGPT/blob/37baab71b9abea1b76ab957409a1cc2fbfba8a26/mingpt/bpe.py#L22-L33))，有时是部分单词(如 capes 分为  `Ġcap` 和  `es`)，有时是标点符号(如 `.`)。
 
-**词汇表**(Vocabulary)和**字节对组合**(Byte-pair merges)是现代自然语言处理中**分词器**(Tokenizer)的核心组成部分。词汇表就像是一本"字典"，它包含了模型能够理解的所有"单词"(tokens)及其对应的数字 ID。在 GPT 模型中，这些"单词"可能是真实的单词、单个字符、或者是常见的词组片段。
+**词汇表**(Vocabulary)和**字节对组合**(Byte-pair merges)是现代自然语言处理中**分词器**(Tokenizer)的核心组成部分。词汇表类似一本字典，它包含了模型能够理解的所有单词(Token)及其对应的数字 ID。在 GPT 模型中，这些 token 可能是真实单词、单个字符或常见词组片段。
 
-[字节对编码](https://huggingface.co/learn/llm-course/chapter6/5)(BPE，Byte-Pair Encoding) 是是一种数据驱动的分词算法。最初是作为一种文本压缩算法开发的，后来被 OpenAI 在预训练 GPT 模型时用于标记化。许多 Transformer 模型都使用了它，包括 GPT、GPT-2、RoBERTa、BART 和 DeBERTa。
+[字节对编码](https://huggingface.co/learn/llm-course/chapter6/5)(Byte-Pair Encoding，BPE)是一种数据驱动的分词算法。最初是作为一种文本压缩算法开发的，后来被 OpenAI 在预训练 GPT 模型时用于标记化。许多 Transformer 模型都使用了它，包括 GPT、GPT-2、RoBERTa、BART 和 DeBERTa。
 
 它首先将文本看作单个字符，然后逐步合并最常一起出现的字符对，形成新的 token，这个过程不断重复，直到达到预设的词汇量。假设"机器学习"这个词在语料库中经常出现 BPE 算法可能会将其作为一个完整的 token，而不是分解为"机"、"器"、"学"、"习"四个 token 这样可以更高效地表示常见词组。可参考视频 [Byte Pair Encoding Tokenization](https://youtu.be/HEikzVL-lZU) 了解该流程：
 
@@ -483,7 +494,7 @@ print([encoder.decoder[i] for i in encoder.encode("zjqfl")])
 
 ### 超参数(Hyperparameters)
 
-**超参数**(Hyperparameters)是在模型设计和训练前确定的关键配置，它们定义了模型的架构特性和计算能力。GPT-2 的核心超参数包含在 `hparams` 字典中：
+**超参数**(Hyperparameters)是在模型设计和训练前确定的关键配置，它们定义了模型的结构、容量和训练过程中的行为。GPT-2 的核心超参数包含在 `hparams` 字典中：
 
 ```python
 print(hparams)
@@ -502,13 +513,13 @@ print(hparams)
 | `n_ctx`   |    Number of Context Tokens    | 1,024  | 最大序列长度     | 限制模型的记忆窗口，影响注意力计算复杂度 O(n²)   |
 | `n_embd`  | Number of Embedding Dimensions |  768   | 嵌入维度         | 控制模型表达能力的"宽度"，影响所有线性层的参数量 |
 | `n_head`  |   Number of Attention Heads    |   12   | 注意力头数       | 提供多角度特征提取，并行计算单元数量             |
-| `n_layer` |        Number of Layers        |   12   | Transformer 层数 | 控制特征抽象层次，决定前向传播的计算步数         |
+| `n_layer` |        Number of Layers        |   12   | Transformer 层数 | 控制特征抽象层次深度，决定前向传播的计算步数     |
 
->  此外， 我们会使用  `n_seq` (Number of sequence)表示输入序列的长度，即 `n_seq = len(inputs)`。这是一个动态值，取决于输入数据，最大不超过 `n_ctx`。
+>  此外， 使用 `n_seq` (Number of sequence)表示输入序列的长度，即 `n_seq = len(inputs)`。这是一个动态值，取决于输入数据，最大不超过 `n_ctx`。
 
 ### 参数(Parameters)
 
-参数 `params` 是一个嵌套的  JSON 字典，用于保存模型的训练权重。JSON 的叶节点是 NumPy 数组。如果打印  `params`，并将数组替换为其形状，我们将得到：
+参数 `params` 是一个嵌套的  JSON 字典，用于保存模型的训练权重。JSON 的叶节点是 NumPy 数组，用于存储实际的权重参数。如果打印  `params`，并将数组替换为其形状，我们将得到：
 
 ```python
 import numpy as np
@@ -564,14 +575,12 @@ print(shape_tree(params))
                 "c_proj": {"b":   [n_embd], "w": [4*n_embd, n_embd]},
             },
         },
-        # ... 重复 n_layer 次
+        # ... 重复 n_layer 层
     ]
 }
 ```
 
-GPT-2 的参数可以按功能分为三大类：
-
-嵌入层参数、Transformer 块参数(自注意力机制、前馈网络、层归一化)、输出层参数。
+GPT-2 的参数可以按功能分为三大类：包括嵌入层参数、Transformer 块参数(自注意力机制、前馈网络、层归一化)和输出层参数。
 
 | 参数 | 全称 | 形状 | 参数量 | 功能 |
 |------|------|------|--------|------|
@@ -601,7 +610,7 @@ GPT-2 的参数可以按功能分为三大类：
 |------|------|--------|------|
 | `ln_f.g/b` | [768] × 2 | 1.5K | 最终层归一化 |
 
-这些是从 OpenAI TensorFlow 检查点加载的：
+这些参数是从 OpenAI 提供的 TensorFlow 检查点文件加载的：
 
 ```python
 import tensorflow as tf
@@ -644,7 +653,7 @@ for name, _ in tf.train.list_variables(tf_ckpt_path):
 
 ### 高斯误差线性单元(GELU)
 
-由 Dan Hendrycks 和 Kevin Gimpel 在 2016 年提出 的 [**GELU**(Gaussian Error Linear Units)](https://huggingface.co/papers/1606.08415) 是 GPT-2 的非线性激活函数，在 Transformer 架构中表现优于 ReLU 和其他激活函数。
+由 Dan Hendrycks 和 Kevin Gimpel 在 2016 年提出的 [**GELU**(Gaussian Error Linear Units)](https://huggingface.co/papers/1606.08415) 是 GPT-2 的非线性激活函数，在 Transformer 架构中表现优于 ReLU 和其他激活函数。
 
 ![Gaussian Error Linear Units Figure 1: The GELU (µ = 0, σ = 1), ReLU, and ELU (α = 1)](./README.assets/gaussian_error_linear_units.png)
 
@@ -654,7 +663,7 @@ for name, _ in tf.train.list_variables(tf_ckpt_path):
 
 神经网络的基础运算是线性变换(矩阵乘法与偏置加法)。如果没有非线性激活函数，无论神经网络有多少层，整个网络本质上仍然只是一个线性模型。非线性激活函数打破了这种限制，使网络能够学习复杂的非线性关系。
 
-GELU 激活函数 `GELU(x) = x * Φ(x)` 可以被理解为：将输入值 x 乘以该输入被保留的概率，体现了一种概率性的特征选择机制。这个概率由标准正态分布的累积分布函数(CDF)给出。由于标准正态分布的 CDF 计算复杂，代码使用了一个常用的近似公式：
+GELU 激活函数 `GELU(x) = x * Φ(x)` 可以被理解为：将输入值 x 乘以该输入被保留的概率，体现了一种概率性的特征选择机制。这个概率由标准正态分布的累积分布函数(Cumulative Distribution Function，CDF)给出。由于标准正态分布的 CDF 计算复杂，代码使用了一个常用的近似公式：
 
 ```python
 def gelu(x):
@@ -672,15 +681,15 @@ print(output)
 #        [ -0.0454, 0.34571]])
 ```
 
-> 在 GPT-2 模型中，GELU主要应用于前馈网络(Feed-Forward Network)层，作为 MLP 中的非线性变换组件。
+> 在 GPT-2 模型中，GELU 主要应用于前馈网络层，作为非线性变换组件。
 
 ### Softmax 函数(Softmax)
 
-Softmax 函数在神经网络和深度学习中扮演着非常重要的角色，Softmax 的核心作用是将一组实数值(通常称为 logits)转换为概率分布。它确保所有输出值在 0 到 1 之间，并且所有值的总和为 1。
+Softmax 函数在神经网络和深度学习中扮演着非常重要的角色，Softmax 的核心作用是将一组实数值(Logits)转换为概率分布。它确保所有输出值在 0 到 1 之间，且总和为 1：
 
 ![Softmax 函数](./README.assets/softmax.png)
 
-在 GPT-2 等语言模型中，Softmax 用于词汇表上的概率分布，帮助模型预测序列中的下一个词。下面是最经典的 Softmax 函数(其中 x_i 是输入向量的第 i 个元素，分母是所有元素指数的总和)：
+在 GPT-2 等语言模型中，Softmax 用于词汇表上的概率分布，帮助模型预测序列中的下一个词。Softmax 函数的标准形式如下，其中 `x_i` 是输入向量的第 `i` 个元素，分母为所有元素指数的总和：
 $$
 \text{softmax}(x_i) = \frac{e^{x_i}}{\sum_j e^{x_j}}
 $$
@@ -693,7 +702,7 @@ def softmax(x):
     # axis=-1 表示沿着最后一个维度操作，对于 GPT-2 模型的输出 logits，最后一个维度的大小等于词汇表大小
     # keepdims=True 保持数组的维度结构，便于后续操作
     exp_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
-    # 2. 归一化：确保所有概率值的总和为 1
+    # 2. 归一化：确保所有概率值之和为 1
     # 计算指数值的总和，将每个指数值除以总和，这确保输出的所有值在 0 到 1 之间，且总和为 1。
     return exp_x / np.sum(exp_x, axis=-1, keepdims=True)
 ```
@@ -716,20 +725,14 @@ x.sum(axis=-1) # 验证概率和为 1
 
 ### 层归一化(Layer Normalization)
 
-[**层归一化**(Layer Normalization)](https://huggingface.co/papers/1607.06450) 层归一化是一种归一化技术，用于稳定深度神经网络的训练过程并提高性能。
-
-需要归一化的原因有：
-
-1. 内部协变量偏移：训练过程中，由于权重更新，各层激活值的分布会发生变化；
-2. 梯度流优化：归一化有助于缓解梯度消失/爆炸问题；
-3. 训练稳定性：保持激活值在合理范围内，加速收敛。
+[**层归一化**(Layer Normalization，LN)](https://huggingface.co/papers/1607.06450) 是一种用于稳定深度神经网络训练并提升性能的归一化技术。
 
 层归一化将数据标准化为均值为 0、方差为 1 的分布，具体步骤如下：
 $$
 LayerNorm(x) = \gamma \cdot \frac{x - \mu}{\sqrt{\sigma^2}} + \beta
 $$
 
->  μ 和 σ² 分别是特征维度上的均值和方差，γ(缩放参数)和 β(偏移参数)是可学习的参数。
+>  μ 和 σ² 分别是特征维度上的均值和方差，缩放参数(γ)和偏移参数(β)是可学习的参数。
 
 ```python
 def layer_norm(x, g, b, eps: float = 1e-5):
@@ -759,32 +762,28 @@ x = layer_norm(x, g=np.ones(x.shape[-1]), b=np.zeros(x.shape[-1]))
 print(x)
 # array([[-0.70709, -0.70709,  1.41418],
 #.       [  -1.397,    0.508,    0.889]])
-# 验证归一化效果：均值接近0，方差接近1
+# 验证归一化效果：均值接近 0，方差接近 1
 x.var(axis=-1)
 # array([0.99996, 1.])
 x.mean(axis=-1)
 #array([-0., -0.])
 ```
 
-> 在 GPT-2 的 Transformer 架构中，层归一化采用 Pre-Norm 结构 ，这是一种将归一化操作前置的设计模式。
->
-> 具体应用在两个关键位置：
+> 在 GPT 的架构中，层归一化具体应用在两个关键位置：
 >
 > 1. 多头注意力机制之前：
 >
 >    ```python
->    # Pre-Norm 结构在自注意力层的应用
->    x_norm = layer_norm(x)                    # 先进行层归一化
+>   x_norm = layer_norm(x)                    # 先进行层归一化
 >    attention_output = multi_head_attention(x_norm)  # 再进行注意力计算
 >    x = x + attention_output                  # 残差连接
 >    ```
->
+>    
 > 2. 前馈神经网络之前：
->
->    ```python
->    # Pre-Norm 结构在前馈网络的应用
+> 
+>   ```python
 >    x_norm = layer_norm(x)                    # 先进行层归一化
->    ffn_output = feed_forward_network(x_norm) # 再进行前馈网络计算
+>   ffn_output = feed_forward_network(x_norm) # 再进行前馈网络计算
 >    x = x + ffn_output                        # 残差连接
 >    ```
 
@@ -807,7 +806,7 @@ $$
 3. 剪切：改变向量间的角度关系；
 4. 投影：将高维空间映射到低维空间。
 
-`linear` 函数实现了一个标准的线性变换，这个函数实现了一个标准的矩阵乘法加偏置的线性层，通常被称为**投影(Projection)**。这个名称来源于线性代数中的向量空间投影概念，因为它将向量从一个向量空间映射(或"投影")到另一个向量空间：
+`linear` 函数实现了标准的线性变换(矩阵乘法加偏置)，通常被称为**投影**(Projection)。这个名称来源于线性代数中的向量空间投影概念，它将向量从一个向量空间映射到另一个向量空间：
 
 ```python
 def linear(x, w, b): 
@@ -838,21 +837,21 @@ linear(x, w, b).shape # (64, 10)
 
 > 在 GPT-2 中，线性变换通常与层归一化、残差连接和非线性激活函数(如GELU)结合使用，形成完整的 Transformer 块结构：
 >
-> | 位置                | 作用                 | 输入维度  | 输出维度   |
-> | ------------------- | -------------------- | --------- | ---------- |
-> | Query/Key/Value投影 | 注意力机制的特征映射 | d_model   | d_k/d_v    |
-> | 注意力输出投影      | 多头注意力结果合并   | d_model   | d_model    |
-> | FFN 第一层          | 特征扩展             | d_model   | 4×d_model  |
-> | FFN 第二层          | 特征压缩             | 4×d_model | d_model    |
-> | 输出投影            | 词汇表映射           | d_model   | vocab_size |
+> | 位置                 | 作用                 | 输入维度  | 输出维度   |
+> | -------------------- | -------------------- | --------- | ---------- |
+> | Query/Key/Value 投影 | 注意力机制的特征映射 | d_model   | d_k/d_v    |
+> | 注意力输出投影       | 多头注意力结果合并   | d_model   | d_model    |
+> | 前馈神经网络第一层   | 特征扩展             | d_model   | 4×d_model  |
+> | 前馈神经网络第二层   | 特征压缩             | 4×d_model | d_model    |
+> | 输出投影             | 词汇表映射           | d_model   | vocab_size |
 
 ## GPT 架构实现
 
 GPT-2 采用基于 Transformer 的解码器架构，整个模型可以分为三个核心组件：
 
 1. 输入表示层：词元嵌入 (Word Token Embeddings) + 位置嵌入(Position Embeddings)；
-2. Transformer 解码器堆栈：多层 Transformer 块的堆叠；
-3. 输出投影层：将隐藏状态投影回词汇表空间。
+2. Transformer 解码器堆栈(Transformer Decoder Stack)：多层 Transformer 块的堆叠；
+3. 输出投影层(Output Projection)：将隐藏状态投影回词汇表空间。
 
 | 组件                | 功能                            | 输入维度          | 输出维度           | 关键操作            |
 | ------------------- | ------------------------------- | ----------------- | ------------------ | ------------------- |
@@ -880,7 +879,7 @@ def gpt2(inputs, wte, wpe, blocks, ln_f, n_head):  # [n_seq] -> [n_seq, n_vocab]
     x = wte[inputs] + wpe[range(len(inputs))]  # 输入形状从 [n_seq] 变为 [n_seq, n_embd]
     
     # 2. 通过 Transformer 解码器堆栈
-    # 通过 n 层 Transformer 块的前向传播：依次通过每个 Transformer 块、每个块保持嵌入维度不变
+    # 依次通过每个 Transformer 块，嵌入维度保持不变
     for block in blocks:
         x = transformer_block(x, **block, n_head=n_head)  # 输入和输出形状都是 [n_seq, n_embd]
     
@@ -900,7 +899,7 @@ def gpt2(inputs, wte, wpe, blocks, ln_f, n_head):  # [n_seq] -> [n_seq, n_vocab]
 
 **词元嵌入 (Word Token Embeddings)**
 
-Token 本身并不能很好地表征神经网络。首先，Token 的相对大小会错误地传达信息(若词汇表中有 `Apple = 5` 和 `Table = 10`，但并不意味着 `2 * Apple = Table`)。其次，单个数字对于神经网络来说维度不够高，即信息容量有限。神经网络无法直接处理离散的符号，我们需要将这些离散符号转换为连续的数值向量，这个过程就是嵌入。
+单独的 Token 编号无法有效表征神经网络中的语义信息。首先，Token 的相对大小会错误地传达信息(若词汇表中有 `Apple = 5` 和 `Table = 10`，但并不意味着 `2 * Apple = Table`)。其次，单个数字对于神经网络来说维度不够高，即信息容量有限。神经网络无法直接处理离散的符号，我们需要将这些离散符号转换为连续的数值向量，这个过程就是嵌入。
 
 利用[词向量(Word vector)](https://jaykmody.com/blog/attention-intuition/#word-vectors-and-similarity)，通过学习嵌入矩阵，将离散的 token 转换为连续的向量表示、将单一数值扩展为高维向量，提供更丰富的特征表示：
 
@@ -950,14 +949,14 @@ wpe[range(len(inputs))] # [n_seq] -> [n_seq, n_embd]
 ```python
 # 位置嵌入矩阵的结构
 wpe = [
-    [pos_0_dim_0, pos_0_dim_1, ..., pos_0_dim_767],    # 位置0的编码
-    [pos_1_dim_0, pos_1_dim_1, ..., pos_1_dim_767],    # 位置1的编码
-    [pos_2_dim_0, pos_2_dim_1, ..., pos_2_dim_767],    # 位置2的编码
+    [pos_0_dim_0, pos_0_dim_1, ..., pos_0_dim_767], # 位置0的编码
+    [pos_1_dim_0, pos_1_dim_1, ..., pos_1_dim_767], # 位置1的编码
+    [pos_2_dim_0, pos_2_dim_1, ..., pos_2_dim_767], # 位置2的编码
     # ...
-    [pos_1023_dim_0, pos_1023_dim_1, ..., pos_1023_dim_767]  # 位置1023的编码
+    [pos_1023_dim_0, pos_1023_dim_1, ..., pos_1023_dim_767]  # 位置 1023 的编码
 ]
 
-# 每一行都是768维的可学习向量
+# 每一行都是 768 维的可学习向量
 # 通过训练学习到位置的语义表示
 ```
 
@@ -975,13 +974,13 @@ x = wte[inputs] + wpe[range(len(inputs))]  # [n_seq] -> [n_seq, n_embd]
 # x[i] 将两个相同形状的矩阵对应元素相加，结果 x 的形状仍为 [n_seq, n_embd]
 ```
 
-对于输入序列中的第 i 个词元， x[i] 包含了该词元的语义信息和它在序列中第 i 个位置的位置信息，即使相同的词元出现在不同位置，它们的最终表示也会不同模型能够理解"猫追狗"和"狗追猫"的区别，因为虽然词元相同，但位置嵌入不同。这种组合嵌入方法是 GPT-2 等 Transformer 模型成功处理序列数据的关键技术之一。
+对于输入序列中的第 `i` 个词元，`x[i]` 包含了该词元的语义信息和它在序列中第 `i` 个位置的位置信息，即使相同的词元出现在不同位置，它们的最终表示也会不同模型能够理解'猫追狗'和'狗追猫'的区别，因为虽然词元相同，但位置嵌入不同。这种组合嵌入方法是 GPT-2 等 Transformer 模型成功处理序列数据的关键技术之一。
 
 > 关于为什么用加法而不是其他方式的讨论：[r/MachineLearning 讨论](https://www.reddit.com/r/MachineLearning/comments/rfssk6/d_in_transformers_why_are_positional_embeddings/)、[TensorFlow Tensor2Tensor Issue](https://github.com/tensorflow/tensor2tensor/issues/1591) 等。尽管向量相加，这两个子空间仍然可以通过某个学习到的变换进行基本独立的操作。
 
 ### 解码器堆栈(Decoder Stack)
 
-这段代码是 GPT-2 模型中最核心的部分，体现了深度学习中"深度"的本质：
+下述代码展示了 GPT-2 模型的核心实现部分，体现了深度学习中深度的本质——即网络层数的堆叠：
 
 ![Hands-On Large Language Models Figure 3-4. A Transformer LLM is made up of a tokenizer, a stack of Transformer blocks, and a language modeling head.](./README.assets/the_components_of_the_forward_pass_1.png)
 
@@ -1004,13 +1003,15 @@ for block in blocks: # blocks是一个包含 n_layer 个 Transformer 块参数�
 3. 残差连接：缓解梯度消失问题，促进信息流动；
 4. 层归一化：稳定训练过程，加速收敛。
 
-堆叠更多的 Transformer 块(增加 n_layer 的值)可以：增强模型的表达能力、使模型能够学习更复杂的模式和关系、提高模型处理长距离依赖的能力。随着深度(层数)和宽度(嵌入维度)的增加，模型的参数数量和计算复杂度也会显著增加。这就是为什么大型语言模型需要强大的计算资源进行训练和推理的原因。
+堆叠更多的 Transformer 块(增加 n_layer 的值)可以：增强模型的表达能力、使模型能够学习更复杂的模式和关系、提高模型处理长距离依赖的能力。
 
-总之，这个简单的循环是 GPT-2 模型能力的核心所在，通过堆叠多个 Transformer 块，模型能够逐层构建对输入序列的深入理解，并最终生成高质量的文本输出。
+随着深度(层数)和宽度(嵌入维度)的增加，模型的参数数量和计算复杂度也会显著增加。这就是为什么大型语言模型需要强大的计算资源进行训练和推理的原因。
+
+总之，这个简单的循环是 GPT-2 模型能力的核心所在，通过堆叠多个 Transformer 块，使模型能够逐层构建对输入序列的深入理解，最终生成高质量的文本输出。
 
 ### 词汇投影(Projection to Vocab)
 
-词汇投影是 GPT-2 模型的最终输出层，负责将高维语义表示转换为词汇表上的概率分布。这一步骤决定了模型生成下一个token的能力：
+词汇投影是 GPT-2 模型的最终输出层，负责将高维语义表示转换为词汇表上的未归一化分数。这一步骤决定了模型生成下一个 token 的能力：
 
 | ![Hands-On Large Language Models Figure 3-6. At the end of the forward pass, the model predicts a probability score for each token in the vocabulary.](./README.assets/the_components_of_the_forward_pass_3.png) | ![Hands-On Large Language Models Figure 3-8. Each token is processed through its own stream of computation (with some interaction between them in attention steps, as we’ll later see).](./README.assets/the_components_of_the_forward_pass_4.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -1020,31 +1021,31 @@ for block in blocks: # blocks是一个包含 n_layer 个 Transformer 块参数�
 x = layer_norm(x, **ln_f)  # [n_seq, n_embd] -> [n_seq, n_embd]
 # 使用词元嵌入矩阵的转置进行投影到词汇表空间
 return x @ wte.T  # [n_seq, n_embd] -> [n_seq, n_vocab]
-# 注意：这里返回的是logits而非概率分布
+# 注意：这里返回的是 logits 而非概率分布
 # 如需概率分布，可以应用 softmax: probs = softmax(logits, axis=-1)
 ```
 
 其工作原理是：
 
-1. 最终层归一化：在投影之前，首先对 Transformer 块的输出应用层归一化，这是 GPT-2 架构特有的设计(原始 GPT 和 Transformer 论文中没有)，层归一化有助于稳定深层网络的训练和推理；
-2. 矩阵乘法投影：使用词元嵌入矩阵的转置(wte.T)进行投影，输入形状为 `[n_seq, n_embd]`，输出形状为 `[n_seq, n_vocab]` 每个位置的输出向量包含词汇表中每个 token 的 logit 分数。
+1. 最终层归一化：在投影之前，对 Transformer 块的输出应用层归一化，这是 GPT-2 架构特有的设计(原始 GPT 和 Transformer 论文中没有)，层归一化有助于稳定深层网络的训练和推理；
+2. 矩阵乘法投影：使用词元嵌入矩阵的转置(wte.T)进行投影，输入形状为 `[n_seq, n_embd]`，输出形状为 `[n_seq, n_vocab]` 每个位置的输出向量包含词汇表中每个 token 的未归一化分数。
 
-其中，模型输出的是logits(未归一化的分数)，而不是应用 softmax 后的概率：
+其中，模型输出的是 Logits，而不是应用 Softmax 后的概率：
 
-1. 贪婪采样的等效性：由于 softmax 是单调函数， `np.argmax(logits)` 等同于 `np.argmax(softmax(logits))`，对于贪婪采样来说，应用 softma x是多余的；
+1. 贪婪采样的等效性：由于 Softmax 是单调函数， `np.argmax(logits)` 等同于 `np.argmax(softmax(logits))`，对于贪婪采样来说，应用 Softmax 是多余的；
 
-2. 信息保留：logits 包含更多信息，可以随时通过应用 softmax 转换为概率，但从概率无法恢复回 logits，因此输出 logits 提供了最大的灵活性；
+2. 信息保留：Logits 包含更多信息，可以随时通过应用 Softmax 转换为概率，但从概率无法恢复回 Logits，因此输出 :ogits 提供了最大的灵活性；
 
-3. 数值稳定性：在计算损失函数时(如交叉熵损失)，直接使用 logits 通常更稳定，`log(softmax(logits))` 可以用更稳定的 `log_softmax(logits)` 替代。
+3. 数值稳定性：在计算损失函数时，直接使用 logits 通常更稳定，`log(softmax(logits))` 可以用更稳定的 `log_softmax(logits)` 替代。
 
 投影到词汇表的步骤有时被称为**语言建模头**(language modeling head)：
 
-1. "头"的含义：模型可以有多个不同类型的输出层("头")；
+1. "头"的含义：模型可以有多个不同类型的输出层(头)；
 2. 灵活性：预训练完成后，可以将语言建模头替换为其他类型的投影；
 3. 迁移学习：例如，可以添加分类头用于特定任务的微调；
 4. 多任务能力：就像神话中的九头蛇一样，模型可以有多个"头"来处理不同任务。
 
-这种设计使GPT-2能够通过简单替换输出头来适应各种下游任务，而无需重新训练整个模型。
+这种设计使 GPT-2 能够通过简单替换输出头来适应各种下游任务，而无需重新训练整个模型。
 
 ### 解码器堆栈的解码器块(Decoder Block)
 
@@ -1052,13 +1053,15 @@ Transformer 解码器块是 GPT-2 的基本构建单元，每个块包含两个�
 
 1. 多头因果自注意力机制(Multi-Head Causal Self-Attention)；
 
-   - 唯一允许不同位置 token 交流信息的组件、因果性质确保自回归生成、并行计算，捕获多种依赖关系。
+   - 这是唯一允许不同位置 token 交流信息的组件；
+   - 因果性质确保模型能够进行自回归生成；
+   - 多头机制支持并行计算，能够捕获多种依赖关系。
 
 2. 逐位置的前馈神经网络(Position-wise Feed-Forward Network)。
 
    - 对每个位置独立进行非线性变换、两层全连接网络，中间使用 GELU 激活、增强模型的表达能力。
 
-   > 在 Transformer 架构中，Multi-Layer Perceptron (MLP)、Position-wise Feed-Forward Network，这两个术语实际上指代同一个组件。
+   > 在 Transformer 架构中，Multi-Layer Perceptron(MLP) 和 Position-wise Feed-Forward Network(PWFFN) 实际上指的是同一个组件。
 
 | ![Hands-On Large Language Models Figure 3-11 The bulk of the Transformer LLM processing happens inside a series of Transformer blocks, each handing the result of its processing as input to the subsequent block.](./README.assets/a_series_of_transformer_blocks.png) | ![Hands-On Large Language Models Figure 3-12. A Transformer block is made up of a self-attention layer and a feedforward neural network.](./README.assets/a_transformer_block_made_up.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -1075,21 +1078,21 @@ def transformer_block(x, mlp, attn, ln_1, ln_2, n_head):  # [n_seq, n_embd] -> [
     return x
 ```
 
-每个子层都在输入上使用了层归一化，也使用了残差连接(即将子层的输入直接连接到子层的输出)。
+每个子层都在输入上使用了层归一化，也使用了残差连接，即将子层的输入直接连接到子层的输出。
 
 前置层归一化(Pre-Norm)相比后置归一化有显著优势，[已被证明对提升 Transformer 的性能非常重要](https://huggingface.co/papers/2002.04745)。残差连接(Residual connections，由 [ResNet](https://huggingface.co/papers/1512.03385) 推广)有几个不同的作用，如梯度流优化、解决深度退化问题等。
 
 #### 逐位置的前馈神经网络
 
-前馈神经网络(Feed-Forward Network，FFN)是 Transformer 架构中负责信息存储和模式学习的核心组件，进行了多头注意力矩进行升维、非线性过滤、然后再降回原来的维度。
+前馈神经网络(Feed-Forward Network，FFN)是 Transformer 架构中负责信息存储和模式学习的核心组件，多头注意力矩进行升维、非线性过滤、然后再降回原来的维度。
 
-[Transformer Feed-Forward Layers Are Key-Value Memories](https://arxiv.org/abs/2012.14913) 中有“FFN 是一个 Key-Value 记忆网络”的结论。一个直观的解释：当我们向语言模型输入"The Shawshank"，期望它生成"Redemption"作为下一个词时，这种词汇关联知识主要存储在前馈网络的参数中。当模型在包含大量"The Shawshank Redemption"文本的语料库上训练时，前馈网络学习并编码了这种词汇共现模式。但是大语言模型不仅仅是一个巨型查找表——它需要在已见过的数据点之间进行插值和泛化，从而在未见过的输入上也能表现良好。
+[Transformer Feed-Forward Layers Are Key-Value Memories](https://arxiv.org/abs/2012.14913) 中有“FFN 是一个 Key-Value 记忆网络”的结论。一个直观的解释：当我们向语言模型输入"The Shawshank"，期望它生成"Redemption"作为下一个词时，这种词汇关联知识主要存储在前馈网络的参数权重中。当模型在包含大量"The Shawshank Redemption"文本的语料库上训练时，前馈网络学习并编码了这种词汇共现模式。但是大语言模型不仅仅是一个巨型查找表——它需要在已见过的数据点之间进行插值和泛化，从而在未见过的输入上也能表现良好。
 
-> 另一个关于前馈神经网络的比喻是： 思考空间 ——Self-Attention 帮助模型正确地分配注意力，FFN 帮助模型仔细地思考，提取更加抽象的特征。注意力机制专注于在 token 层级优化权重，在 token 之间建立丰富的联系，解决了序列中的长短程依赖问题；而 FFN 专注于在特征层次优化权重，让不同特征之间相互融合，丰富局部的表现力。两者相辅相成，各自独立又互相配合。
+> 另一个关于前馈神经网络的比喻是： 思考空间 —— 多头因果自注意力机制帮助模型正确地分配注意力，逐位置的前馈神经网络帮助模型仔细地思考，提取更加抽象的特征。注意力机制专注于在 token 层级优化权重，在 token 之间建立丰富的联系，解决了序列中的长短程依赖问题；而逐位置的前馈神经网络专注于在特征层次优化权重，让不同特征之间相互融合，丰富局部的表现力。两者相辅相成，各自独立又互相配合。
 
 ![Hands-On Large Language Models Figure 3-13. The feedforward neural network component of a Transformer block likely does the majority of the model’s memorization and interpolation.](./README.assets/the_feedforward_neural_network_component.png)
 
-Position-wise Feed-Forward Network 是 Feed-Forward Neural Network 的一个特殊应用形式，[Attention Is All You Need](https://arxiv.org/pdf/1706.03762) 实用 Position-wise Feed-Forward Networks 作为标题。"逐位置的"意味着这个前馈网络独立地应用于序列中的每个位置。对于输入序列中的每个 token，都使用完全相同的前馈网络进行处理，且各个位置之间的处理是相互独立的。
+Position-wise Feed-Forward Network 是 Feed-Forward Neural Network 的一个特殊应用形式，[Attention Is All You Need](https://arxiv.org/pdf/1706.03762) 使用 Position-wise Feed-Forward Network 作为标题。"逐位置的"意味着这个前馈网络独立地应用于序列中的每个位置。对于输入序列中的每个 token，都使用完全相同的前馈网络进行处理，且各个位置之间的处理是相互独立的。
 
 这个函数实现了一个两层的前馈神经网络：
 
@@ -1132,22 +1135,22 @@ def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd]
 
 #### 多头因果自注意力机制
 
-这一层可能是 Transformer 中最难理解的部分。让我们通过逐个分解每个词来理解"多头因果自注意力"：自注意力(Self-Attention)、因果(Causal)、多头(Multi-Head)。
+这一层可能是 Transformer 中最难理解的部分。我们可以逐词来理解“多头因果自注意力”：自注意力(Self-Attention)、因果(Causal)、多头(Multi-Head)。
 
 ##### 自注意力(Self-Attention)
 
-参考[示例](https://lilianweng.github.io/posts/2018-06-24-attention/)，人类的视觉注意力使我们能够聚焦于“高分辨率”的特定区域(例如黄色框中的尖耳朵)，同时以“低分辨率”感知周围的图像(例如雪景背景和服装如何)。同样，我们可以用一个句子或一个紧密相关的语境来解释单词之间的关系。当我们看到“eating”时，我们预计很快就会遇到一个与食物相关的词。而颜色“green”与“eating”并不直接相关：
+参考[示例](https://lilianweng.github.io/posts/2018-06-24-attention/)，人类的视觉注意力使我们能够聚焦于“高分辨率”的特定区域(例如黄色框中的尖耳朵)，同时以“低分辨率”感知周围的图像(例如雪景背景和服装的细节)。同样，我们可以用一个句子或一个紧密相关的语境来解释单词之间的关系。当我们看到“eating”时，我们预计很快就会遇到一个与食物相关的词。而“green”与“eating”并不直接相关：
 
 | ![Attention? Attention! Figure 1 A Shiba Inu in a men’s outfit](./README.assets/attention_attention_1.png) | ![Attention? Attention! Figure 2 One word "attends" to other words in the same sentence differently.](./README.assets/attention_attention_2.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
-根据 [Attention? Attention!](https://lilianweng.github.io/posts/2018-06-24-attention/) 介绍，Seq2Seq 模型的固定长度上下文向量设计的一个关键且明显的缺点是无法记住长句子，它通常在处理完整个输入后就忘记了第一部分。注意力机制的诞生是为了帮助神经机器翻译([NMT](https://arxiv.org/pdf/1409.0473.pdf))记住较长的源语句。注意力机制允许模型关注输入序列中的特定部分，而不是平等地处理所有输入。在 Transformer 中，这使得模型能够捕捉序列中的长距离依赖关系和复杂模式。
+根据 [Attention? Attention!](https://lilianweng.github.io/posts/2018-06-24-attention/) 介绍，Seq2Seq 模型的固定长度上下文向量设计的一个关键且明显的缺点是无法记住长句子，它通常在处理完整个输入后就忘记了第一部分。注意力机制的诞生是为了帮助神经机器翻译([Neural Machine Translation，NMT](https://arxiv.org/pdf/1409.0473.pdf))记住较长的源语句。注意力机制允许模型关注输入序列中的特定部分，而不是平等地处理所有输入。在 Transformer 中，这使得模型能够捕捉序列中的长距离依赖关系和复杂模式。
 
 “The animal didn't cross the street because it was too tired” —— 这句话中的 “it” 指代什么？是动物还是街道？对人类来说，这是一个简单的问题，但对算法来说却并非易事。当模型处理 “it” 这个词时，[自注意力机制](https://jalammar.github.io/illustrated-transformer/)让模型将 “it” 与 “animal” 联系起来：
 
 ![As we are encoding the word "it" in encoder #5 (the top encoder in the stack), part of the attention mechanism was focusing on "The Animal", and baked a part of its representation into the encoding of "it".](./README.assets/self_attention_it.png)
 
-以下是注意力机制的一个简化框架：一个输入序列和一个正在处理的当前位置。由于我们主要关注的是当前位置，因此图中展示了一个输入向量和一个输出向量，输出向量根据注意力机制整合了序列中先前元素的信息。
+以下是注意力机制的一个简化框架：一个输入序列和一个正在处理的当前位置。我们主要关注的是当前位置，图中展示了一个输入向量和一个输出向量，输出向量根据注意力机制整合了序列中先前元素的信息：
 
 | ![Hands-On Large Language Models Figure 3-15. A simplified framing of attention: an input sequence and a current position being processed. As we’re mainly concerned with this position, the figure shows an input vector and an output vector that incorporates information from the previous elements in the sequence according to the attention mechanism.](./README.assets/a_simplified_framing_of_attention.png) | ![Hands-On Large Language Models Figure 3-16. Attention is made up of two major steps: relevance scoring for each position, then a step where we combine the information based on those scores.](./README.assets/attention_is_made_up_of_two_major_steps.png) | ![Hands-On Large Language Models Figure 3-17. We get better LLMs by doing attention multiple times in parallel, increasing the model’s capacity to attend to different types of information.](./README.assets/attention_multiple_times_in_parallel.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -1157,9 +1160,9 @@ def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd]
 1. 对每个先前输入的 token 与当前正在处理的 token (粉色箭头所示)的相关性进行评分；
 2. 利用这些分数，我们将来自不同位置的信息组合成一个输出向量。
 
-为了赋予 Transformer 更广泛的注意力能力，注意力机制被复制并并行执行多次。每次并行的注意力应用都会被引导至一个注意力头。这提升了模型对输入序列中需要同时关注的复杂内容进行建模的能力，但我们首先关注单个注意力头。其他注意力头的计算过程相同，但各自使用各自的投影矩阵。
+为了赋予 Transformer 更广泛的注意力能力，注意力机制被复制并并行执行多次，每个注意力头独立执行一次注意力计算。这提升了模型对输入序列中需要同时关注的复杂内容进行建模的能力，但我们首先关注单个注意力头。其他注意力头的计算过程相同，但各自使用各自的投影矩阵。
 
-该层的输入包括：当前位置 token 的向量表示、先前 token 的向量表示，目标是生成融合先前 token 的相关信息的当前位置的新表示。
+该层的输入包括：当前位置 token 的向量表示、先前 token 的向量表示。目标是生成当前 token 的新表示，该表示融合了先前 token 的相关信息。
 
 训练过程会生成三个投影矩阵：查询(Query)投影矩阵、键(Key)投影矩阵、值(Value)投影矩阵：
 
@@ -1168,11 +1171,11 @@ def ffn(x, c_fc, c_proj):  # [n_seq, n_embd] -> [n_seq, n_embd]
 
 注意力机制首先将输入乘以投影矩阵 `Q = X @ W_q`、 `K = X @ W_k` 、`V = X @ W_v`，从而创建三个新的矩阵：查询(Query)矩阵、键(Key)矩阵和值(Value)矩阵。这三个矩阵是输入信息在不同表示空间中的投影，有助于执行注意力机制的两个步骤：1. 相关性评分、2. 信息合并。
 
-在 Transformer 推理阶段，我们一次生成一个 token。这意味着我们一次只处理一个位置。因此，这里的注意力机制只关注这一个位置，以及如何提取来自其他位置的信息来指导这个位置。
+在 Transformer 推理阶段，我们一次生成一个 token。这意味着我们一次每次仅处理序列中的一个位置。因此，这里的注意力机制只关注这一个位置，以及如何提取来自其他位置的信息来指导这个位置。
 
-对于特定位置计算，注意力机制的相关性评分步骤是通过将当前位置的 Q 向量与 K 矩阵的转置相乘来实现的。这将产生一个分数，表示特定位置与每个先前 token 的相关性。将其通过 softmax 运算进行归一化，使这些分数的总和为 1。
+对于特定位置计算，注意力机制的相关性评分步骤是通过将当前位置的 Q 向量与 K 矩阵的转置相乘来实现的。这将产生一个分数，表示特定位置与每个先前 token 的相关性。将其通过 Softmax 运算进行归一化，使这些分数的总和为 1。
 
-现在我们有了相关性分数，我们将每个 token 关联的值(Value)向量乘以该 token 的分数。将这些得到的向量相加，就得到了此注意力机制步骤的输出。
+现在我们有了相关性分数，我们用每个 token 的相关性分数加权其对应的 Value 向量。将这些得到的向量相加，就得到了此注意力机制步骤的输出。
 
 | ![Hands-On Large Language Models Figure 3-20. Scoring the relevance of previous tokens is accomplished by multiplying the query associated with the current position with the keys matrix.](./README.assets/scoring_the_relevance_of previous_tokens_is_accomplished.png) | ![Hands-On Large Language Models Figure 3-21. Attention combines the relevant information of previous positions by multiplying their relevance scores by their respective value vectors.](./README.assets/attention_combines_the_relevant_information.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -1196,7 +1199,7 @@ def attention(q, k, v):  # [n_q, d_k], [n_k, d_k], [n_k, d_v] -> [n_q, d_v]
 计算步骤 ：
 
 - `q @ k.T`：计算查询和键的点积，得到注意力分数矩阵，形状为 [n_q, n_k]；
-- `/np.sqrt(q.shape[-1])` ：除以键维度的平方根进行缩放，这是为了防止点积值过大导致 softmax 梯度消失；
+- `/np.sqrt(q.shape[-1])` ：除以键维度的平方根进行缩放，这是为了防止点积值过大导致 Softmax 梯度消失；
 - `softmax(...)`：对缩放后的注意力分数应用 softmax 函数，得到注意力权重；
 - `... @ v`：用注意力权重对值进行加权求和，得到最终的注意力输出，形状为 [n_q, d_v]。
 
@@ -1256,7 +1259,7 @@ def self_attention(x, w_fc, w_proj): # [n_seq, n_embd] -> [n_seq, n_embd]
 
 这更高效，因为现代 GPU 可以更好地利用一个大型矩阵乘法，而不是顺序发生的 3 个单独的小矩阵乘法。
 
-最后，我们添加偏置向量、使用线性函数以匹配 GPT-2 的实现，并重命名参数以匹配我们的 `params` 字典：
+最后，我们添加偏置向量、使用线性函数以符合 GPT-2 的实现，并重命名参数以匹配我们的 `params` 字典：
 
 ```python
 def self_attention(x, c_attn, c_proj): # [n_seq, n_embd] -> [n_seq, n_embd] 
@@ -1344,7 +1347,7 @@ heroes 0.156  0.453  0.028  0.     0.
 
 ![Hands-On Large Language Models Figure 3-24. Attention figures show which token is being processed, and which previous tokens an attention mechanism allows it to attend to.](./README.assets/attention_figures_show_which_token_is_being_processed.png)
 
-上述掩码方法有一个问题：我们的行不再总和为 1(因为我们在 softmax 应用后将它们设置为 0)。为了确保行仍然总和为 1，我们需要在应用 softmax 之前修改注意力矩阵。这可以通过在 softmax 之前将要掩码的条目设置为 -∞ 来实现：
+上述掩码方法有一个问题：每行的和不再为 1(因为我们在 Softmax 应用后将它们设置为 0)。为了确保行仍然总和为 1，我们需要在应用 Softmax 之前修改注意力矩阵。这可以通过在 Softmax 之前将要掩码的条目设置为 -∞ 来实现：
 
 ```python
 def attention(q, k, v, mask):  # [n_q, d_k], [n_k, d_k], [n_k, d_v], [n_q, n_k] -> [n_q, d_v] 
@@ -1482,13 +1485,13 @@ x = np.hstack(out_heads)
 # hstack 表示水平堆叠，在最后一个维度上连接所有矩阵
 ```
 
-我们编写的代码在循环中顺序执行每个头的注意力计算(一次一个)，这不是很高效。在实践中，你会希望并行执行这些计算。为了简单起见，我们只保留这种顺序执行的方式。
+上述实现为顺序执行，实际应用中建议并行计算以提升效率。为了简单起见，我们保留这种顺序执行的方式。
 
 至此，我们终于完成了GPT的实现。现在，就是把所有内容放在一起并运行代码。
 
 ## 运行 GPT
 
-将所有内容整合在一起，我们得到了gpt2.py，整个文件仅有120行代码(如果去掉注释和空白行，只有60行)。
+将所有内容整合在一起，我们得到了 `gpt2.py`，整个文件仅有 120 行代码，去除注释和空白行后仅 60 行代码。
 
 我们可以通过以下命令测试我们的实现：
 
@@ -1498,7 +1501,7 @@ python gpt2.py \
     --n_tokens_to_generate 8
 ```
 
-这会输出：
+示例输出如下：
 
 ```
 the most powerful machines on the planet.
@@ -1506,30 +1509,23 @@ the most powerful machines on the planet.
 
 # 接下来做什么
 
-1. GPU/TPU 支持： 如将 `import numpy as np` 替换为 `import jax.numpy as np` 即可获得硬件加速能力。
-
+1. GPU/TPU 支持：如将 `import numpy as np` 替换为 `import jax.numpy as np` 即可获得硬件加速能力。
 2. 反向传播(Backpropagation)：如使用 `jax.grad(loss_fn)(params)` 自动计算梯度，无需手动实现反向传播。
-
 3. 批处理(Batching)：如通过 `jax.vmap(gpt2, in_axes=[0, None, ...])` 实现自动批处理，提升训练效率。
-
 4. 推理优化(Inference Optimization)：实现 KV 缓存和并行注意力头计算是最重要的性能优化，详见 [Transformer 推理优化](https://lilianweng.github.io/posts/2023-01-10-inference-optimization/)。
-
 5. 训练(Training)：真正的挑战在于数据和模型的规模化，参考 [大模型训练指南](https://lilianweng.github.io/posts/2021-09-25-train-large/) 了解分布式训练。
-
 6. 评估(Evaluation)：使用 [HELM](https://arxiv.org/abs/2211.09110) 等综合基准测试，但需对评估指标保持批判性思维。
-
 7. 架构改进(Architecture Improvements)：探索 [X-Transformers](https://github.com/lucidrains/x-transformers) 了解最新的 Transformer 架构研究。
 8. 停止生成(Stopping Generation)：引入 EOS 标记控制生成长度，避免固定 token 数量的限制。
-
-9. 微调(Fine-tuning)
-   1. 分类微调：替换语言建模头为分类头，使用最后一个 token 的输出进行分类。
-   2. 指令微调：在人工标记的指令-完成对上训练，提升模型的指令遵循能力和实用性。
+9. 微调(Fine-tuning)：
+   1. 分类微调：替换语言建模头为分类头，使用最后一个 token 的输出进行分类；
+   2. 指令微调：在人工标记的指令-完成对上训练，提升模型的指令遵循能力和实用性；
    3. 参数高效微调(PEFT)：使用 [Adapters](https://huggingface.co/papers/1902.00751) 等方法，仅训练少量参数即可获得接近全量微调的效果。
 
 # 其他推荐内容
 
-1. [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) - Jay Alammar
-2. [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/) - Jay Alammar
-3. [Transformers (how LLMs work) explained visually | DL5](https://www.youtube.com/watch?v=wjZofJX0v4M) - 3Blue1Brown
-4. [CS224N: Natural Language Processing with Deep Learning](**https://web.stanford.edu/class/cs224n/**) - Stanford University
-5. [Transformer Explainer: LLM Transformer Model Visually IExplained](https://poloclub.github.io/transformer-explainer/) - Georgia Institute of Technology
+1. [Transformers (how LLMs work) explained visually | DL5](https://www.youtube.com/watch?v=wjZofJX0v4M) - 3Blue1Brown
+2. [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) - Jay Alammar
+3. [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/) - Jay Alammar
+4. [Transformer Explainer: LLM Transformer Model Visually IExplained](https://poloclub.github.io/transformer-explainer/) - Georgia Institute of Technology
+5. [CS224N: Natural Language Processing with Deep Learning](**https://web.stanford.edu/class/cs224n/**) - Stanford University
