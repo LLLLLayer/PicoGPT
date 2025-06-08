@@ -1,5 +1,5 @@
 # PicoGPT / 60 行 NumPy 代码实现 GPT-2
-# 项目
+# 一、项目
 
 本项目从 [jaymody/picoGPT](https://github.com/jaymody/picoGPT) Fork 而来，文章主体内容翻译和整理自 [GPT in 60 Lines of Numpy](https://jaykmody.com/blog/gpt-from-scratch/)，并对部分内容做了额外补充，内容也将在 [PicoGPT](https://github.com/LLLLLayer/PicoGPT) 持续迭代完善。文中引用了 [Jay Alammar](https://jalammar.github.io/) 的书籍 [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/)、博客等，及其他与文章主题相关的文章、论文的部分内容，这部分内容均在引用位置进行了标注。
 
@@ -12,14 +12,14 @@ PicoGPT 是一个基于 NumPy 的 GPT-2 极简实现，其核心逻辑代码仅 
 1. 熟悉 Python、Numpy，还有一些训练神经网络的基础；
 2. 理解此实现以教学为主要目的，为保持简洁性，代码有意省略了部分非核心功能，而在整体架构上力求完整。
 
-## 依赖项
+## 1.1 依赖项
 
 ```bash
 pip install -r requirements.txt
 ```
 本项目已在 Python 3.9.10 环境下测试通过。
 
-## 使用
+## 1.2 使用
 
 ```bash
 python gpt2.py "Alan Turing theorized that computers would one day become"
@@ -29,11 +29,10 @@ python gpt2.py "Alan Turing theorized that computers would one day become"
 >
 > ```
 > the most powerful machines on the planet.
-> 
 > The computer is a machine that can perform complex calculations, and it can perform these calculations in a way that is very similar to the human brain.
 > ```
 
-# GPT 是什么?
+# 二、GPT 是什么?
 
 **GPT**(Generative Pre-trained Transformer)，是一类基于 Transformer 的神经网络架构：
 
@@ -43,7 +42,7 @@ python gpt2.py "Alan Turing theorized that computers would one day become"
 
 Transformer 最早在 2017 年发表的著名论文 [Attention Is All You Need](https://huggingface.co/papers/1706.03762) 中得到探讨，该论文首次提出了 Transformer 架构，为后续的 GPT 等模型奠定了基础。它完全基于注意力机制，在 Transformer 中，编码和解码组件堆叠在一起。编码器负责理解输入，解码器负责生成输出。GPT 只保留了解码器部分，所以叫“decoder-only”。
 
-| ![Hands-On Large Language Models Figure 1-16. The Transformer is a combination of stacked encoder and decoder blocks.](./README.assets/the_transformer.png) | ![![Hands-On Large Language Models Figure 1-1. A peek into the history of Language AI.](./README.assets/the_architecture_of_a_gpt_1.png) |
+| ![Hands-On Large Language Models Figure 1-16. The Transformer is a combination of stacked encoder and decoder blocks.](./README.assets/the_transformer.png) | ![Hands-On Large Language Models Figure 1-1. A peek into the history of Language AI.](./README.assets/the_architecture_of_a_gpt_1.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 像 OpenAI 的 GPT-3 这样的大型语言模型 (Large Language Models，LLM)底层均采用 GPT 架构。其特点在于经过大量数据训练，模型规模极大，例如：
@@ -54,7 +53,7 @@ Transformer 最早在 2017 年发表的著名论文 [Attention Is All You Need](
 | ![Hands-On Large Language Models Figure 1-25. GPT models quickly grew in size with each iteration.](./README.assets/gpt_models_quickly_grew_in_size_with_each_iteration.png) | ![Hands-On Large Language Models Figure 1-28. A comprehensive view into the Year of Generative AI.](./README.assets/the_year_of_generative_ai.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
-## 输入和输出
+## 2.1 输入和输出
 
 LLM 接收 Prompt 并响应，GPT 的函数签名类似这样：
 
@@ -149,7 +148,7 @@ next_token = vocab[next_token_id]     # next_token = "capes"
 
 预测序列中下一个最合理 token 的任务被称为**语言建模**(Language modeling)，我们可以把 GPT 称为一种**语言模型**(Language model)。
 
-## 生成文本
+## 2.2 生成文本
 
 ### 自回归(Autoregressive)
 
@@ -198,7 +197,7 @@ np.random.choice(np.arange(vocab_size), p=output[-1]) # pants
 >
 > ![Hands-On Large Language Models Figure 6-4. A higher temperature increases the likelihood that less probable tokens are generated and vice versa.](./README.assets/temperature.png)
 
-## 训练(Training)
+## 2.3 训练(Training)
 
 **损失函数**(Loss Function)是衡量模型预测结果与真实结果之间差距的一个函数。训练 GPT 与其它神经网络类似，针对特定的损失函数，使用[**梯度下降**(Gradient descent optimization algorithms)](https://huggingface.co/papers/1609.04747)训练模型，该方法计算损失函数相对于模型参数的梯度(导数)，然后沿着能够减小损失的方向调整参数。
 
@@ -277,7 +276,7 @@ def train(texts: list[list[str]], params) -> dict:
 
 这就是一个极度简化但典型的神经网络训练循环：编码输入、计算损失、反向传播求梯度、用梯度下降法更新参数。不断重复这个过程，模型就会越来越“聪明”，预测能力越来越强。
 
-值得注意的是，语言模型训练不需要人工标注的数据。相反，我们利用文本数据本身的内在结构——每个 token 都可以作为其前面 tokens 的预测目标，从而自动生成大量的输入-目标对。这种方法被称为[**自监督学习**(Self-supervised learning)](https://en.wikipedia.org/wiki/Self-supervised_learning)。自监督使我们能够大规模扩展训练数据。我们只需要获取尽可能多的原始文本，并将其输入到模型中即可。例如，GPT-3 使用了来自互联网和书籍的 3000 亿个文本 tokens 进行训练，以下图表来自[Language Models are Few-Shot Learners](https://huggingface.co/papers/2005.14165)：
+值得注意的是，语言模型训练不需要人工标注的数据。相反，我们利用文本数据本身的内在结构——每个 token 都可以作为其前面 tokens 的预测目标，从而自动生成大量的输入-目标对。这种方法被称为[**自监督学习**(Self-supervised learning)](https://en.wikipedia.org/wiki/Self-supervised_learning)。自监督使我们能够大规模扩展训练数据。我们只需要获取尽可能多的原始文本，并将其输入到模型中即可。例如，GPT-3 使用了来自互联网和书籍的 3000 亿个文本 tokens 进行训练，以下图表来自 [Language Models are Few-Shot Learners](https://huggingface.co/papers/2005.14165)：
 
 ![Language Models are Few-Shot Learners Table 2.2: Datasets used to train GPT-3](./README.assets/datasets_used_to_train_gpt_3.png)
 
@@ -302,7 +301,7 @@ def train(texts: list[list[str]], params) -> dict:
 > 1. 训练时，前向传播用于计算输出，反向传播用于根据损失调整参数。
 > 1. 推理时，每生成一个 token，都会进行一次前向传播，得到当前 token 的预测概率分布。
 
-## 提示(Prompting)
+## 2.4 提示(Prompting)
 
 2018 年发表的 [Improving Language Understanding by Generative Pre-Training](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) 论文首次提出了 GPT-1 模型，介绍了一种基于 Transformer 架构的生成式预训练方法，确立了如今广泛采用的两阶段训练范式：首先在大规模无标注文本上进行自监督预训练，然后在特定任务的标注数据上进行有监督微调。实验表明，拥有1.17 亿参数的 GPT-1 模型经过微调后，在多种**自然语言处理**(Natural Language Processing，NLP)任务上取得了当时最先进的性能，证明了这种预训练-微调范式的有效性。
 
@@ -336,9 +335,9 @@ def train(texts: list[list[str]], params) -> dict:
 
 该图展示了一个包含多个组件的复杂 Prompt 示例。通过在输入中加入任务说明、上下文信息、示例输入输出等不同部分，可以有效引导大语言模型按照预期方式完成复杂任务。这种多组件提示设计体现了提示工程的重要性，有助于提升模型的理解能力和输出质量。
 
-# 实现 GPT
+# 三、实现 GPT
 
-## 下载和了解项目
+## 3.1 下载和了解项目
 
 克隆本教程的存储库，并安装依赖项：
 
@@ -416,11 +415,11 @@ if __name__ == "__main__":
 3. `gpt2` 函数：待实现的前向传播函数；
 4. 命令行接口：通过 [`fire.Fire(main)`](https://github.com/google/python-fire) 将 Python 脚本转换为命令行应用，以支持 `python gpt2.py "prompt"` 调用。
 
-## GPT 架构概览
+## 3.2 GPT 架构概览
 
 GPT 的架构是基于 [Transformer](https://huggingface.co/papers/1706.03762) 的，但与原始 Transformer 不同，GPT 仅使用解码器部分，移除了编码器-解码器之间的交叉注意力机制，这种设计使模型专注于自回归语言建模任务。以下左图为原始 Transformer 架构，右图为 GPT 架构：
 
-| ![Attention Is All You Need Figure 1: The Transformer - model architecture](./README.assets/the_transformer_model_architecture_1.png) | ![The GPT model architecture](./README.assets/the_transformer_model_architecture_2.png) |
+| ![Attention Is All You Need Figure 1: The Transformer - model architecture](./README.assets/the_transformer_model_architecture_1.png) | ![The GPT architecture](./README.assets/the_transformer_model_architecture_2.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
 **左图：这张图展示了原始 Transformer 模型的完整架构，包含了编码器和解码器两部分：**
@@ -444,7 +443,7 @@ GPT 的架构是基于 [Transformer](https://huggingface.co/papers/1706.03762) �
 4. 顶部是输出处理部分：
    1. 输出投影、线性变换(Linear)、Softmax 层、将输出转换为下一个 token 的概率分布。
 
-## 分词器、模型参数与超参数
+## 3.3 分词器、模型参数与超参数
 
 ### 分词器(Tokenizer)
 
@@ -647,7 +646,7 @@ for name, _ in tf.train.list_variables(tf_ckpt_path):
 
 在实现 GPT 时，我们需要回来参考该字典来检查权重的形状。为了保持一致性，我们会将代码中的变量名与字典的键进行匹配。
 
-## 基础的神经网络层
+## 3.4 基础的神经网络层
 
 在实现 GPT 架构本身之前，我们需要先实现一些基础的神经网络层。
 
@@ -773,19 +772,19 @@ x.mean(axis=-1)
 >
 > 1. 多头注意力机制之前：
 >
->    ```python
->   x_norm = layer_norm(x)                    # 先进行层归一化
->    attention_output = multi_head_attention(x_norm)  # 再进行注意力计算
->    x = x + attention_output                  # 残差连接
->    ```
+> ```python
+> x_norm = layer_norm(x)                    # 先进行层归一化
+> attention_output = multi_head_attention(x_norm)  # 再进行注意力计算
+> x = x + attention_output                  # 残差连接
+> ```
 >    
 > 2. 前馈神经网络之前：
 > 
 >   ```python
->    x_norm = layer_norm(x)                    # 先进行层归一化
+>   x_norm = layer_norm(x)                    # 先进行层归一化
 >   ffn_output = feed_forward_network(x_norm) # 再进行前馈网络计算
->    x = x + ffn_output                        # 残差连接
->    ```
+>   x = x + ffn_output                        # 残差连接
+>   ```
 
 ### 线性变换(Linear Transformation)
 
@@ -845,7 +844,7 @@ linear(x, w, b).shape # (64, 10)
 > | 前馈神经网络第二层   | 特征压缩             | 4×d_model | d_model    |
 > | 输出投影             | 词汇表映射           | d_model   | vocab_size |
 
-## GPT 架构实现
+## 3.5 GPT 架构实现
 
 GPT-2 采用基于 Transformer 的解码器架构，整个模型可以分为三个核心组件：
 
@@ -1489,7 +1488,7 @@ x = np.hstack(out_heads)
 
 至此，我们终于完成了GPT的实现。现在，就是把所有内容放在一起并运行代码。
 
-## 运行 GPT
+## 3.6 运行 GPT
 
 将所有内容整合在一起，我们得到了 `gpt2.py`，整个文件仅有 120 行代码，去除注释和空白行后仅 60 行代码。
 
@@ -1507,7 +1506,7 @@ python gpt2.py \
 the most powerful machines on the planet.
 ```
 
-# 接下来做什么
+# 四、接下来做什么
 
 1. GPU/TPU 支持：如将 `import numpy as np` 替换为 `import jax.numpy as np` 即可获得硬件加速能力。
 2. 反向传播(Backpropagation)：如使用 `jax.grad(loss_fn)(params)` 自动计算梯度，无需手动实现反向传播。
@@ -1522,10 +1521,10 @@ the most powerful machines on the planet.
    2. 指令微调：在人工标记的指令-完成对上训练，提升模型的指令遵循能力和实用性；
    3. 参数高效微调(PEFT)：使用 [Adapters](https://huggingface.co/papers/1902.00751) 等方法，仅训练少量参数即可获得接近全量微调的效果。
 
-# 其他推荐内容
+# 五、其他推荐内容
 
 1. [Transformers (how LLMs work) explained visually | DL5](https://www.youtube.com/watch?v=wjZofJX0v4M) - 3Blue1Brown
 2. [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) - Jay Alammar
 3. [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/) - Jay Alammar
 4. [Transformer Explainer: LLM Transformer Model Visually IExplained](https://poloclub.github.io/transformer-explainer/) - Georgia Institute of Technology
-5. [CS224N: Natural Language Processing with Deep Learning](**https://web.stanford.edu/class/cs224n/**) - Stanford University
+5. [CS224N: Natural Language Processing with Deep Learning](https://web.stanford.edu/class/cs224n/) - Stanford University
